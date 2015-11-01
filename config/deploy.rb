@@ -68,6 +68,7 @@ require 'pathname'
 
 set :application, "saas" # nom application (github)
 set :shared_children, ["archive",
+                       "log",
                        "tmp"]
 set :server_list, ["keywords_#{application}",
                    "referrals_#{application}"]
