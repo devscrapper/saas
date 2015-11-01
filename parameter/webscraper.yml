@@ -1,0 +1,17 @@
+
+development:
+  :path_firefox: ["d:" , "Mozilla Firefox","35.0", "firefox.exe"]
+  :path_phantomjs: ["d:" , "personnel","phantomjs" , "phantomjs.exe"]
+#  :ruby_path: ["d:" , "ruby193" , "bin" , "ruby.exe"]
+  :debugging:  false
+test:
+  :path_firefox: ["d:" , "Mozilla Firefox","35.0", "firefox.exe"]
+  #:path_phantomjs: ["d:" , "personnel","phantomjs" , "phantomjs.exe"]
+  :path_phantomjs: ["/", "usr", "bin", "phantomjs"]
+#  :ruby_path: ["d:" , "ruby193" , "bin" , "ruby.exe"]
+  :debugging:  false
+production:
+  :path_firefox: ["d:" , "FirefoxPortable" ,  "FirefoxPortable.exe"]
+  :path_phantomjs: ["d:" , "phantomjs" , "phantomjs.exe"]
+#  :ruby_path: ["d:" , "ruby193" , "bin" , "ruby.exe"]
+  :debugging:  false

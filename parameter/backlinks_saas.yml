@@ -1,0 +1,15 @@
+
+development:
+  :listening_port: 9252
+  :delay_periodic_load_geolocations: 60 #en minute
+  :debugging: true
+
+test:
+  :listening_port: 9252
+  :delay_periodic_load_geolocations: 60 #en minute
+  :debugging:  true
+
+production:
+  :listening_port: 9252
+  :delay_periodic_load_geolocations: 60 #en minute
+  :debugging:  true

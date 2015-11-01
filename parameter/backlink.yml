@@ -1,0 +1,15 @@
+
+development:
+  :majestic_user: webmaster@chauffage-electrique.net
+  :majestic_pwd:  123456
+  :debugging:  false
+
+test:
+  :majestic_user: webmaster@chauffage-electrique.net
+  :majestic_pwd:  123456
+  :debugging:  false
+
+production:
+  :majestic_user: webmaster@chauffage-electrique.net
+  :majestic_pwd:  123456
+  :debugging:  false

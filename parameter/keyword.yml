@@ -1,0 +1,14 @@
+
+development:
+  :semrush_user: info@lesclesdumidi.com
+  :semrush_pwd:  123456
+  :debugging:  false
+test:
+  :semrush_user: info@lesclesdumidi.com
+  :semrush_pwd:  123456
+  :debugging:  false
+
+production:
+  :semrush_user: info@lesclesdumidi.com
+  :semrush_pwd:  123456
+  :debugging:  false
