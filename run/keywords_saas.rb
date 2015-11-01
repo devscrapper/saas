@@ -130,7 +130,7 @@ EventMachine.run {
 
   EventMachine.start_server "localhost", listening_port, KeywordsConnection, geolocation_factory, webscraper_factory, logger
 }
-logger.a_log.info "calendar server stopped"
+logger.a_log.info "keywords saas started"
 
 
 
