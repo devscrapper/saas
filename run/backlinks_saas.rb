@@ -130,7 +130,7 @@ EventMachine.run {
 
   EventMachine.start_server "localhost", listening_port, BacklinksConnection, geolocation_factory, webscraper_factory, logger
 }
-logger.a_log.info "calendar server stopped"
+logger.a_log.info "backlinks saas started"
 
 
 
