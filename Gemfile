@@ -16,6 +16,7 @@ gem 'user-agent-randomizer', '~> 0.2.0'
 gem 'headless', '2.2.0'
 gem 'addressable', '2.3.8'
 gem 'ruby-progressbar', '1.0.2'
+gem 'rest-client', '~> 1.6.7'
 
 
 # fin new gem
