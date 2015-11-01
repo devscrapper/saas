@@ -15,6 +15,7 @@ gem 'trollop', '2.0'
 gem 'user-agent-randomizer', '~> 0.2.0'
 gem 'headless', '2.2.0'
 gem 'addressable', '2.3.8'
+gem 'ruby-progressbar', '1.0.2'
 
 
 # fin new gem
