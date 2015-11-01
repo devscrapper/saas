@@ -17,11 +17,15 @@ class KeywordsConnection < EM::HttpServer::Server
 
 
   def initialize(geolocation_factory, webscraper_factory, logger)
+      @logger = logger
+      logger.a_log.info "1"
     super
-    @logger = logger
+      logger.a_log.info "2"
+
     @geolocation_factory = geolocation_factory
     @geolocation = @geolocation_factory.nil? ? nil : @geolocation_factory.get
     @webscraper_factory = webscraper_factory
+      logger.a_log.info "3"
   end
 
   def process_http_request
