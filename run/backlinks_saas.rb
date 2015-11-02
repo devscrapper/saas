@@ -128,7 +128,7 @@ EventMachine.run {
 
   end
 
-  EventMachine.start_server "localhost", listening_port, BacklinksConnection, geolocation_factory, webscraper_factory, logger
+  EventMachine.start_server "0.0.0.0", listening_port, BacklinksConnection, geolocation_factory, webscraper_factory, logger
 }
 logger.a_log.info "backlinks saas started"
 
