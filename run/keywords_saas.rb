@@ -128,7 +128,7 @@ EventMachine.run {
 
   end
 
-  EventMachine.start_server "localhost", listening_port, KeywordsConnection, geolocation_factory, webscraper_factory, logger
+  EventMachine.start_server "0.0.0.0", listening_port, KeywordsConnection, geolocation_factory, webscraper_factory, logger
 }
 logger.a_log.info "keywords saas started"
 
