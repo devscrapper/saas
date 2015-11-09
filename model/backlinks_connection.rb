@@ -80,7 +80,7 @@ class BacklinksConnection < EM::HttpServer::Server
 
   private
   def scrape(hostname)
-    @logger.an_event.info "ask keywords for #{hostname}"
+    @logger.an_event.info "ask backlinks for #{hostname}"
 
     Backlinks::majestic_ident_authen(@webscraper)
 
@@ -91,7 +91,7 @@ class BacklinksConnection < EM::HttpServer::Server
 
     backlinks = Backlinks::scrape(hostname, @webscraper, opts)
 
-    @logger.an_event.info "keywords scraped from majestic for #{hostname}"
+    @logger.an_event.info "backlinks scraped from majestic for #{hostname}"
 
     backlinks
   end
