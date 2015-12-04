@@ -620,12 +620,7 @@ module Keywords
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if hostname.nil? or hostname.empty?
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
 
-      driver.navigate_to "http://fr.semrush.com/fr/dashboard/" unless driver.current_url == "http://fr.semrush.com/fr/dashboard/"
-      input = driver.find_element(:id, 'text_1')
-      input.clear
-      input.send_keys hostname
-      driver.find_element(:css, 'input.sem-btn-search-report').click
-      @logger.an_event.debug "search in semrush #{hostname}"
+      driver.navigate_to "http://fr.semrush.com/fr/info/#{hostname}?db=fr" unless driver.current_url == "http://fr.semrush.com/fr/info/#{hostname}?db=fr"
 
       ##CompetitorsOrganicSearch > div.sem-widget-footer.clearfix > div.sem-widget-footer-rb.sem-widget-footer-export-links >
       driver.find_element(:link, "Exporter").click
