@@ -566,7 +566,7 @@ module Keywords
       raise Error.new(IDENTIFICATION_FAILED, :values => {:user => user}, :error => e)
 
     else
-
+      sleep(5)
     ensure
 
     end
