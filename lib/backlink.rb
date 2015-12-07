@@ -122,12 +122,11 @@ module Backlinks
     end
   end
 
-
   def scrape_as_saas(hostname)
     init_logging
     #"www.epilation-laser-definitive.info"
 
-
+    try_count = 3
     begin
       parameters = Parameter.new(__FILE__)
       saas_host = parameters.saas_host.to_s
@@ -135,7 +134,7 @@ module Backlinks
 
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if hostname.nil? or hostname.empty?
 
-      #query http vers keywords saas
+      #query http vers backlinks saas
       href = "http://#{saas_host}:#{saas_port}/?action=scrape&hostname=#{hostname}"
       @logger.an_event.debug "uri backlinks csv file majestic : #{href}"
 
@@ -143,6 +142,10 @@ module Backlinks
                      "r:utf-8")
 
     rescue Exception => e
+      @logger.an_event.warn "scrape backlinks for #{hostname} : #{e.message}"
+      sleep 5
+      try_count -= 1
+      retry if try_count > 0
       @logger.an_event.error "scrape backlinks for #{hostname} : #{e.message}"
       raise Error.new(BACKLINK_NOT_SCRAPED, :values => {:hostname => hostname}, :error => e)
 
@@ -152,6 +155,8 @@ module Backlinks
 
     end
   end
+
+
 
 
   def majestic_ident_authen(driver)

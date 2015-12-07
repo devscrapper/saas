@@ -708,51 +708,99 @@ module Keywords
   end
 
 #keywords_file is absolute path file flow
-  def scrape_as_saas(hostname, keywords_file=nil)
-    init_logging
-    #"www.epilation-laser-definitive.info"
+  def scrape_as_saas(hostname, opts={})
+     init_logging
+     #"www.epilation-laser-definitive.info"
+     type_proxy = nil
+     proxy = nil
+     keywords = ""
+     keywords_io = nil
+
+     keywords_f = opts.fetch(:scraped_f, nil)
+     @logger.an_event.debug "keywords flow #{keywords_f}"
+
+     range = opts.fetch(:range, :full)
+     @logger.an_event.debug "range data #{range}"
 
 
-    begin
-      parameters = Parameter.new(__FILE__)
-      saas_host = parameters.saas_host.to_s
-      saas_port = parameters.saas_port.to_s
+     try_count = 3
+     begin
+       parameters = Parameter.new(__FILE__)
+       saas_host = parameters.saas_host.to_s
+       saas_port = parameters.saas_port.to_s
 
-      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if hostname.nil? or hostname.empty?
-      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_host"}) if saas_host.nil? or saas_host.empty?
-      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_port"}) if saas_port.nil? or saas_port.empty?
+       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if hostname.nil? or hostname.empty?
+       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_host"}) if saas_host.nil? or saas_host.empty?
+       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_port"}) if saas_port.nil? or saas_port.empty?
 
-      #query http vers keywords saas
-      href = "http://#{saas_host}:#{saas_port}/?action=scrape&hostname=#{hostname}"
-      @logger.an_event.debug "uri keywords csv file semrush : #{href}"
 
-      results = open(href,
-                     "r:utf-8")
 
-    rescue Exception => e
-      @logger.an_event.error "scrape keywords as saas for #{hostname} : #{e.message}"
-      raise Error.new(KEYWORD_NOT_SCRAPED, :values => {:hostname => hostname}, :error => e)
+            #query http vers keywords saas
+       href = "http://#{saas_host}:#{saas_port}/?action=scrape&hostname=#{hostname}"
+       @logger.an_event.debug "uri keywords csv file semrush : #{href}"
 
-    else
-      @logger.an_event.info "scrape keywords as saas for #{hostname}"
+       keywords_io = open(href,
+                      "r:utf-8")
 
-      unless keywords_file.nil?
-        FileUtils.cp(results, keywords_file.absolute_path)
-        @logger.an_event.debug "save keywords to repository for #{hostname}"
+     rescue Exception => e
+       @logger.an_event.warn "scrape keywords as saas for #{hostname} : #{e.message}"
+       sleep 5
+       try_count -= 1
+       retry if try_count > 0
+       @logger.an_event.error "scrape keywords as saas for #{hostname} : #{e.message}"
+       raise Error.new(KEYWORD_NOT_SCRAPED, :values => {:hostname => hostname}, :error => e)
 
-      else
-        keywords_arr = []
-        CSV.open(results.path,
-                 "r:bom|utf-8",
-                 {headers: true,
-                  converters: :numeric,
-                  header_converters: :symbol}).map.each { |row|
-          keywords_arr << [row[:url], row[:keyword]]
-        }
-        keywords_arr
-      end
-    end
-  end
+     else
+       if keywords_f.nil?
+         keywords = keywords_io.read
+         @logger.an_event.debug "lecture du fichier csv et rangement dans string"
+         if range == :full
+           #String
+           # tout le contenu
+           keywords
+
+         else
+           #Array
+           #select url & keywords colonne
+           keywords_arr = []
+
+           CSV.parse(keywords,
+                     {headers: true,
+                      converters: :numeric,
+                      header_converters: :symbol}).each { |row|
+             keywords_arr << [row[:url], row[:keyword]]   if !row[:url].nil? and !row[:keyword].nil?
+           }
+           keywords_arr
+         end
+       else
+
+         if range == :full
+           #File
+           FileUtils.cp(keywords_io,
+                        keywords_f)
+           @logger.an_event.debug "copy du fichier csv dans flow #{keywords_f}"
+
+         else
+           #File
+           #select url & keywords colonne
+           keywords_f = File.open(keywords_f, "w+:bom|utf-8")
+           CSV.open(keywords_io,
+                    "r:bom|utf-8",
+                    {headers: true,
+                     converters: :numeric,
+                     header_converters: :symbol}).map.each { |row|
+             keywords_f.write("#{[row[:url], row[:keyword]].join(SEPARATOR)}#{EOFLINE}")
+           }
+         end
+
+
+       end
+
+     ensure
+
+
+     end
+   end
 
 #----------------------------------------------------------------------------------------------------------------
 # suggest(engine, keyword, domain, driver)
