@@ -129,3 +129,4 @@
 1603: "referral [url] not evaluated"
 1800: "argument [variable] not define"
 1801: "action [action] unknown"
+1802: "action [action] not execute"

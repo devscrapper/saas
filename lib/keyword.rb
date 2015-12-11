@@ -9,7 +9,7 @@ require 'csv'
 require 'open-uri'
 require 'thwait'
 require 'yaml'
-
+require 'json'
 require_relative '../lib/parameter'
 require_relative 'error'
 
@@ -28,6 +28,8 @@ module Keywords
   KEYWORD_NOT_FOUND = 1508
   SEMRUSH_SUBSCRIPTION_IS_OVER = 1509
 
+  EOFLINE = "\n"
+  SEPARATOR = ";"
   INDEX_MAX = 3
   ALPHABET = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
   @logger = nil
@@ -35,7 +37,6 @@ module Keywords
     include Errors
     include Addressable
 
-    SEPARATOR = ";"
 
     attr_reader :words, #string of word
                 :engines # hash contenant par engine l'url et l'index de la page dans laquelle le domain a été trouvé
@@ -108,7 +109,39 @@ module Keywords
       end
     end
 
+    def evaluate_as_saas(domain)
+        try_count = 3
 
+        begin
+          parameters = Parameter.new(__FILE__)
+          saas_host = parameters.saas_host.to_s
+          saas_port = parameters.saas_port.to_s
+          time_out = parameters.time_out_saas_evaluate.to_i
+          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
+          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_host"}) if saas_host.nil? or saas_host.empty?
+          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_port"}) if saas_port.nil? or saas_port.empty?
+          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "time_out_saas_evaluate"}) if time_out.nil? or time_out == 0
+
+
+           #query http vers keywords saas
+          href = "http://#{saas_host}:#{saas_port}/?action=evaluate&keywords=#{@words}&domain=#{domain}"
+
+          keywords_io = open(href,
+                             "r:utf-8",
+                             {:read_timeout => time_out})
+
+        rescue Exception => e
+          sleep 5
+          try_count -= 1
+          retry if try_count > 0
+          raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:keyword => @words}, :error => e)
+
+        else
+          @engines  = JSON.parse(keywords_io.string)
+
+        end
+
+    end
     #----------------------------------------------------------------------------------------------------------------
     # google_suggest(hostname, driver)
     #----------------------------------------------------------------------------------------------------------------
@@ -709,98 +742,99 @@ module Keywords
 
 #keywords_file is absolute path file flow
   def scrape_as_saas(hostname, opts={})
-     init_logging
-     #"www.epilation-laser-definitive.info"
-     type_proxy = nil
-     proxy = nil
-     keywords = ""
-     keywords_io = nil
+    init_logging
+    #"www.epilation-laser-definitive.info"
+    type_proxy = nil
+    proxy = nil
+    keywords = ""
+    keywords_io = nil
 
-     keywords_f = opts.fetch(:scraped_f, nil)
-     @logger.an_event.debug "keywords flow #{keywords_f}"
+    keywords_f = opts.fetch(:scraped_f, nil)
+    @logger.an_event.debug "keywords flow #{keywords_f}"
 
-     range = opts.fetch(:range, :full)
-     @logger.an_event.debug "range data #{range}"
-
-
-     try_count = 3
-     begin
-       parameters = Parameter.new(__FILE__)
-       saas_host = parameters.saas_host.to_s
-       saas_port = parameters.saas_port.to_s
-
-       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if hostname.nil? or hostname.empty?
-       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_host"}) if saas_host.nil? or saas_host.empty?
-       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_port"}) if saas_port.nil? or saas_port.empty?
+    range = opts.fetch(:range, :full)
+    @logger.an_event.debug "range data #{range}"
 
 
+    try_count = 3
+    begin
+      parameters = Parameter.new(__FILE__)
+      saas_host = parameters.saas_host.to_s
+      saas_port = parameters.saas_port.to_s
+      time_out = parameters.time_out_saas_scrape.to_i
 
-            #query http vers keywords saas
-       href = "http://#{saas_host}:#{saas_port}/?action=scrape&hostname=#{hostname}"
-       @logger.an_event.debug "uri keywords csv file semrush : #{href}"
+      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if hostname.nil? or hostname.empty?
+      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_host"}) if saas_host.nil? or saas_host.empty?
+      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_port"}) if saas_port.nil? or saas_port.empty?
+      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "time_out_saas_scrape"}) if time_out.nil? or time_out == 0
 
-       keywords_io = open(href,
-                      "r:utf-8")
+      #query http vers keywords saas
+      href = "http://#{saas_host}:#{saas_port}/?action=scrape&hostname=#{hostname}"
+      @logger.an_event.debug "uri scrape_saas : #{href}"
 
-     rescue Exception => e
-       @logger.an_event.warn "scrape keywords as saas for #{hostname} : #{e.message}"
-       sleep 5
-       try_count -= 1
-       retry if try_count > 0
-       @logger.an_event.error "scrape keywords as saas for #{hostname} : #{e.message}"
-       raise Error.new(KEYWORD_NOT_SCRAPED, :values => {:hostname => hostname}, :error => e)
+      keywords_io = open(href,
+                         "r:utf-8",
+                         {:read_timeout => time_out})
 
-     else
-       if keywords_f.nil?
-         keywords = keywords_io.read
-         @logger.an_event.debug "lecture du fichier csv et rangement dans string"
-         if range == :full
-           #String
-           # tout le contenu
-           keywords
+    rescue Exception => e
+      @logger.an_event.warn "scrape keywords as saas for #{hostname} : #{e.message}"
+      sleep 5
+      try_count -= 1
+      retry if try_count > 0
+      @logger.an_event.error "scrape keywords as saas for #{hostname} : #{e.message}"
+      raise Error.new(KEYWORD_NOT_SCRAPED, :values => {:hostname => hostname}, :error => e)
 
-         else
-           #Array
-           #select url & keywords colonne
-           keywords_arr = []
+    else
+      if keywords_f.nil?
+        keywords = keywords_io.read
+        @logger.an_event.debug "lecture du fichier csv et rangement dans string"
+        if range == :full
+          #String
+          # tout le contenu
+          keywords
 
-           CSV.parse(keywords,
-                     {headers: true,
-                      converters: :numeric,
-                      header_converters: :symbol}).each { |row|
-             keywords_arr << [row[:url], row[:keyword]]   if !row[:url].nil? and !row[:keyword].nil?
-           }
-           keywords_arr
-         end
-       else
+        else
+          #Array
+          #select url & keywords colonne
+          keywords_arr = []
 
-         if range == :full
-           #File
-           FileUtils.cp(keywords_io,
-                        keywords_f)
-           @logger.an_event.debug "copy du fichier csv dans flow #{keywords_f}"
-
-         else
-           #File
-           #select url & keywords colonne
-           keywords_f = File.open(keywords_f, "w+:bom|utf-8")
-           CSV.open(keywords_io,
-                    "r:bom|utf-8",
+          CSV.parse(keywords,
                     {headers: true,
                      converters: :numeric,
-                     header_converters: :symbol}).map.each { |row|
-             keywords_f.write("#{[row[:url], row[:keyword]].join(SEPARATOR)}#{EOFLINE}")
-           }
-         end
+                     header_converters: :symbol}).each { |row|
+            keywords_arr << [row[:url], row[:keyword]] if !row[:url].nil? and !row[:keyword].nil?
+          }
+          keywords_arr
+        end
+      else
+
+        if range == :full
+          #File
+          FileUtils.cp(keywords_io,
+                       keywords_f)
+          @logger.an_event.debug "copy du fichier csv dans flow #{keywords_f}"
+
+        else
+          #File
+          #select url & keywords colonne
+          keywords_f = File.open(keywords_f, "w+:bom|utf-8")
+          CSV.open(keywords_io,
+                   "r:bom|utf-8",
+                   {headers: true,
+                    converters: :numeric,
+                    header_converters: :symbol}).map.each { |row|
+            keywords_f.write("#{[row[:url], row[:keyword]].join(SEPARATOR)}#{EOFLINE}")
+          }
+        end
 
 
-       end
+      end
 
-     ensure
+    ensure
 
 
-     end
-   end
+    end
+  end
 
 #----------------------------------------------------------------------------------------------------------------
 # suggest(engine, keyword, domain, driver)
@@ -820,7 +854,7 @@ module Keywords
 #----------------------------------------------------------------------------------------------------------------
 # soit on retourne un tableau de mot clé, soit un flow conte
 #----------------------------------------------------------------------------------------------------------------
-  def suggest(keyword, geolocation, driver)
+  def suggest(keyword, driver)
     init_logging
 
     raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "keywords"}) if keyword.nil? or keyword.empty?
@@ -868,10 +902,73 @@ module Keywords
     rescue Exception => e
       raise Error.new(KEYWORD_NOT_SUGGESTED, :values => {:keyword => keyword}, :error => e)
 
+    else
+      suggesteds
+
     end
 
 
-    suggesteds
+  end
+
+#----------------------------------------------------------------------------------------------------------------
+# suggest(engine, keyword, domain, driver)
+#----------------------------------------------------------------------------------------------------------------
+# fournit la liste des suggestions d'un mot clé pour une engine
+#----------------------------------------------------------------------------------------------------------------
+# input :
+# un moteur de recherche
+# un mot clé
+# un domaine sans http
+# une instance de webdriver
+# en options :
+# un nom absolu de fichier pour stocker les couples [landing_link, keywords] ; aucun tableau ne sera fournit en Output
+# output :
+# un tableau dont chaque occurence contient le couple [landing_link, keywords]
+# nom absolu de fichier passé en input contenant les données issues de semtush en l'état
+#----------------------------------------------------------------------------------------------------------------
+# soit on retourne un tableau de mot clé, soit un flow conte
+#----------------------------------------------------------------------------------------------------------------
+  def suggest_as_saas(keyword)
+    init_logging
+
+
+    try_count = 3
+    suggesteds = []
+    begin
+      parameters = Parameter.new(__FILE__)
+      saas_host = parameters.saas_host.to_s
+      saas_port = parameters.saas_port.to_s
+      time_out = parameters.time_out_saas_suggest.to_i
+      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "keywords"}) if keyword.nil? or keyword.empty?
+      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_host"}) if saas_host.nil? or saas_host.empty?
+      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_port"}) if saas_port.nil? or saas_port.empty?
+      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "time_out_saas_suggest"}) if time_out.nil? or time_out == 0
+
+
+       #query http vers keywords saas
+      href = "http://#{saas_host}:#{saas_port}/?action=suggest&keywords=#{keyword}"
+      @logger.an_event.debug "uri suggest_saas : #{href}"
+
+      keywords_io = open(href,
+                         "r:utf-8",
+                         {:read_timeout => time_out})
+
+    rescue Exception => e
+      @logger.an_event.warn "suggest keywords as saas for #{keyword} : #{e.message}"
+      sleep 5
+      try_count -= 1
+      retry if try_count > 0
+      @logger.an_event.error "suggest keywords as saas for #{keyword} : #{e.message}"
+      raise Error.new(KEYWORD_NOT_SUGGESTED, :values => {:hostname => keyword}, :error => e)
+      suggesteds
+
+    else
+      suggesteds  = JSON.parse(keywords_io.string)
+      @logger.an_event.debug "suggested keywords as saas for #{keyword} : #{suggesteds}"
+
+      suggesteds
+    end
+
 
   end
 
@@ -908,6 +1005,7 @@ module Keywords
   module_function :semrush_ident_authen
   module_function :scrape
   module_function :scrape_as_saas
+  module_function :suggest_as_saas
   module_function :suggest
 
 
