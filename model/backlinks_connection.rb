@@ -105,7 +105,7 @@ class BacklinksConnection < EM::HttpServer::Server
         response.send_response
 
       ensure
-        @webscraper_factory.free(@webscraper) unless @webscraper.nil?
+        @webscraper_factory.free(webscraper) unless webscraper.nil?
         close_connection_after_writing
 
       end
