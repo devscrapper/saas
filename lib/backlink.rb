@@ -157,8 +157,6 @@ module Backlinks
   end
 
 
-
-
   def majestic_ident_authen(driver)
     init_logging
 
@@ -250,12 +248,14 @@ module Backlinks
         uri = URI.parse(@url)
 
       rescue Exception => e
-        raise Error.new(BAD_URL_BACKLINK, :values => {:url => "domain"}, :error => e)
+        raise Error.new(BAD_URL_BACKLINK, :values => {:url => @url}, :error => e)
 
       else
         @path = uri.path
         @hostname = uri.hostname
-
+        raise Error.new(BAD_URL_BACKLINK, :values => {:url => @url}, :error => e) if uri.scheme.nil? or
+            uri.path.nil? or
+            uri.hostname.nil?
       end
     end
 
@@ -274,12 +274,12 @@ module Backlinks
         type_proxy, proxy = Backlinks::proxy(geolocation) unless geolocation == nil.to_json
 
         page = open(@url,
-                    UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string,
+                    "User-Agent" => UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string, # n'est pas obligatoire
                     type_proxy => proxy,
                     :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if !type_proxy.nil? and !proxy.nil?
 
         page = open(@url,
-                    UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string,
+                    "User-Agent" => UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string, # n'est pas obligatoire
                     :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if type_proxy.nil? and proxy.nil?
 
         @title = Nokogiri::HTML(page).css('title').text

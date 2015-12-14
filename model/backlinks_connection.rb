@@ -25,51 +25,91 @@ class BacklinksConnection < EM::HttpServer::Server
   end
 
   def process_http_request
+    #------------------------------------------------------------------------------------------------------------------
+    # Check input data
+    #------------------------------------------------------------------------------------------------------------------
     begin
       query_values = Addressable::URI.parse("?#{Addressable::URI.unencode_component(@http_query_string)}").query_values
 
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "action"}) if query_values["action"].nil? or query_values["action"].empty?
 
       case query_values["action"]
+
         when "scrape"
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if query_values["hostname"].nil? or query_values["hostname"].empty?
 
-          @webscraper = @webscraper_factory.book(@geolocation)
-          results = scrape(query_values["hostname"])
+        when "evaluate"
+          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "backlink"}) if query_values["backlink"].nil? or query_values["backlink"].empty?
+          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "landing_url"}) if query_values["landing_url"].nil? or query_values["landing_url"].empty?
 
         else
           raise Error.new(ACTION_UNKNOWN, :values => {:action => query_values["action"]})
+
       end
 
     rescue Exception => e
       @logger.an_event.error e.message
+
       response = EM::DelegatedHttpResponse.new(self)
+
       case e.code
         when ACTION_UNKNOWN
           response.status = 501
+
         when ARGUMENT_NOT_DEFINE
           response.status = 400
-        else
-          response.status = 500
-      end
 
+      end
       response.content_type 'application/json'
       response.content = e.to_json
       response.send_response
 
     else
-      response = EM::DelegatedHttpResponse.new(self)
-      response.status = 200
-      response.content_type 'application/json'
-      response.content = results
-      response.send_response
+      begin
 
-    ensure
-      @webscraper_factory.free(@webscraper) unless @webscraper.nil?
-      close_connection_after_writing
 
+        case query_values["action"]
+          when "scrape"
+            webscraper = @webscraper_factory.book(@geolocation)
+
+            results = scrape(query_values["hostname"], webscraper)
+
+          when "evaluate"
+            results = evaluate(query_values["backlink"], query_values["landing_url"])
+
+          else
+            raise Error.new(ACTION_UNKNOWN, :values => {:action => query_values["action"]})
+        end
+
+      rescue Exception => e
+        @logger.an_event.error e.message
+        response = EM::DelegatedHttpResponse.new(self)
+        case e.code
+          when ACTION_UNKNOWN
+            response.status = 501
+          when ARGUMENT_NOT_DEFINE
+            response.status = 400
+          else
+            response.status = 500
+        end
+
+        response.content_type 'application/json'
+        response.content = e.to_json
+        response.send_response
+
+      else
+        response = EM::DelegatedHttpResponse.new(self)
+        response.status = 200
+        response.content_type 'application/json'
+        response.content = results
+        response.send_response
+
+      ensure
+        @webscraper_factory.free(@webscraper) unless @webscraper.nil?
+        close_connection_after_writing
+
+      end
     end
-
   end
 
   def http_request_errback e
@@ -79,21 +119,32 @@ class BacklinksConnection < EM::HttpServer::Server
 
 
   private
-  def scrape(hostname)
+  def scrape(hostname, webscraper)
     @logger.an_event.info "ask backlinks for #{hostname}"
 
-    Backlinks::majestic_ident_authen(@webscraper)
+    Backlinks::majestic_ident_authen(webscraper)
 
     @logger.an_event.info "identification to majestic for #{hostname}"
 
     opts = {}
     opts.merge!(:geolocation => @geolocation.to_json) unless @geolocation.nil?
 
-    backlinks = Backlinks::scrape(hostname, @webscraper, opts)
+    backlinks = Backlinks::scrape(hostname, webscraper, opts)
 
     @logger.an_event.info "backlinks scraped from majestic for #{hostname}"
 
     backlinks
   end
 
+  def evaluate(backlink, landing_url)
+    @logger.an_event.info "evaluate backlink #{backlink}"
+
+    kw = Backlinks::Backlink.new(backlink)
+
+    kw.evaluate(landing_url, @geolocation.to_json)
+
+    @logger.an_event.info "evaluated backlink #{backlink} : #{landing_url} is backlink ? #{kw.is_a_backlink}"
+
+    kw.is_a_backlink.to_json
+  end
 end
