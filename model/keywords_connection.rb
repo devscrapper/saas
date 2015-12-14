@@ -85,8 +85,6 @@ class KeywordsConnection < EM::HttpServer::Server
 
             results = scrape(query_values["hostname"], webscraper)
 
-            @webscraper_factory.free(webscraper)
-
           rescue Exception => e
             @logger.an_event.error e.message
             response = EM::DelegatedHttpResponse.new(self)
@@ -101,6 +99,9 @@ class KeywordsConnection < EM::HttpServer::Server
             response.content_type 'application/json'
             response.content = results
             response.send_response
+
+          ensure
+            @webscraper_factory.free(webscraper) unless webscraper.nil?
 
           end
 
@@ -118,10 +119,9 @@ class KeywordsConnection < EM::HttpServer::Server
                   results = suggest(query_values["keywords"], webscraper)
 
                 when "evaluate"
-                  results = evaluate(query_values["keywords"], query_values["domain"],webscraper)
+                  results = evaluate(query_values["keywords"], query_values["domain"], webscraper)
 
               end
-
 
             rescue Error => e
               results = e
@@ -210,7 +210,7 @@ class KeywordsConnection < EM::HttpServer::Server
 
     @logger.an_event.info "evaluated keywords #{keywords} : #{kw.engines}"
 
-    kw.engines
+    kw.engines.to_json
 
   end
 

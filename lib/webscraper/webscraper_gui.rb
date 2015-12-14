@@ -29,6 +29,9 @@ module Webscrapers
       begin
         @driver.navigate.to url
 
+      rescue Net::ReadTimeout => e
+        raise Error.new(PAGE_NOT_FULL_LOAD, :values => {:url => url}, :error => e)
+
       rescue Exception => e
         raise Error.new(NAVIGATE_FAILED, :values => {:url => url}, :error => e)
 

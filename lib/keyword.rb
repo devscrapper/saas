@@ -110,38 +110,39 @@ module Keywords
     end
 
     def evaluate_as_saas(domain)
-        try_count = 3
+      try_count = 3
 
-        begin
-          parameters = Parameter.new(__FILE__)
-          saas_host = parameters.saas_host.to_s
-          saas_port = parameters.saas_port.to_s
-          time_out = parameters.time_out_saas_evaluate.to_i
-          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
-          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_host"}) if saas_host.nil? or saas_host.empty?
-          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_port"}) if saas_port.nil? or saas_port.empty?
-          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "time_out_saas_evaluate"}) if time_out.nil? or time_out == 0
+      begin
+        parameters = Parameter.new(__FILE__)
+        saas_host = parameters.saas_host.to_s
+        saas_port = parameters.saas_port.to_s
+        time_out = parameters.time_out_saas_evaluate.to_i
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_host"}) if saas_host.nil? or saas_host.empty?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_port"}) if saas_port.nil? or saas_port.empty?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "time_out_saas_evaluate"}) if time_out.nil? or time_out == 0
 
 
-           #query http vers keywords saas
-          href = "http://#{saas_host}:#{saas_port}/?action=evaluate&keywords=#{@words}&domain=#{domain}"
+        #query http vers keywords saas
+        href = "http://#{saas_host}:#{saas_port}/?action=evaluate&keywords=#{@words}&domain=#{domain}"
 
-          keywords_io = open(href,
-                             "r:utf-8",
-                             {:read_timeout => time_out})
+        keywords_io = open(href,
+                           "r:utf-8",
+                           {:read_timeout => time_out})
 
-        rescue Exception => e
-          sleep 5
-          try_count -= 1
-          retry if try_count > 0
-          raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:keyword => @words}, :error => e)
+      rescue Exception => e
+        sleep 5
+        try_count -= 1
+        retry if try_count > 0
+        raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:keyword => @words}, :error => e)
 
-        else
-          @engines  = JSON.parse(keywords_io.string)
+      else
+        @engines = JSON.parse(keywords_io.string)
 
-        end
+      end
 
     end
+
     #----------------------------------------------------------------------------------------------------------------
     # google_suggest(hostname, driver)
     #----------------------------------------------------------------------------------------------------------------
@@ -649,12 +650,39 @@ module Keywords
     range = opts.fetch(:range, :full)
     @logger.an_event.debug "range data #{range}"
 
+
     begin
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if hostname.nil? or hostname.empty?
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
 
+
       driver.navigate_to "http://fr.semrush.com/fr/info/#{hostname}?db=fr" unless driver.current_url == "http://fr.semrush.com/fr/info/#{hostname}?db=fr"
 
+    rescue Error => e
+      if e.code == Webscrapers::PAGE_NOT_FULL_LOAD
+        # la page n'est pas completement chargé. peut être que le bouton <exporté> est disponible.
+        #donc on ne lève pas d'erreur et on teste si le bton est présent
+
+      else
+        raise Error.new(KEYWORD_NOT_SCRAPED, :values => {:hostname => hostname}, :error => e)
+
+      end
+
+        #survient quand une connection a été réalisée simultanement à partir d'un autre navigateur
+    rescue Selenium::WebDriver::Error::NoSuchElementError => e
+      raise Error.new(CONNEXION_TO_SEMRUSH_LOOSE, :error => e) if driver.find_element(:css, 'div.sem-popup-body').displayed?
+
+    rescue Exception => e
+      if e.message.index("redirection forbidden:") == 0
+        raise Error.new(SEMRUSH_SUBSCRIPTION_IS_OVER, :error => e)
+
+      else
+        raise Error.new(KEYWORD_NOT_SCRAPED, :values => {:hostname => hostname}, :error => e)
+
+      end
+    end
+
+    begin
       ##CompetitorsOrganicSearch > div.sem-widget-footer.clearfix > div.sem-widget-footer-rb.sem-widget-footer-export-links >
       driver.find_element(:link, "Exporter").click
       @logger.an_event.debug "click on Exporter"
@@ -676,18 +704,10 @@ module Keywords
 
       end
 
-        #survient quand une connection a été réalisée simultanement à partir d'un autre navigateur
-    rescue Selenium::WebDriver::Error::NoSuchElementError => e
-      raise Error.new(CONNEXION_TO_SEMRUSH_LOOSE, :error => e) if driver.find_element(:css, 'div.sem-popup-body').displayed?
-
     rescue Exception => e
-      if e.message.index("redirection forbidden:") == 0
-        raise Error.new(SEMRUSH_SUBSCRIPTION_IS_OVER, :error => e)
+      raise Error.new(KEYWORD_NOT_SCRAPED, :values => {:hostname => hostname}, :error => e)
 
-      else
-        raise Error.new(KEYWORD_NOT_SCRAPED, :values => {:hostname => hostname}, :error => e)
 
-      end
     else
       if keywords_f.nil?
         keywords = keywords_io.read
@@ -945,7 +965,7 @@ module Keywords
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "time_out_saas_suggest"}) if time_out.nil? or time_out == 0
 
 
-       #query http vers keywords saas
+      #query http vers keywords saas
       href = "http://#{saas_host}:#{saas_port}/?action=suggest&keywords=#{keyword}"
       @logger.an_event.debug "uri suggest_saas : #{href}"
 
@@ -963,7 +983,7 @@ module Keywords
       suggesteds
 
     else
-      suggesteds  = JSON.parse(keywords_io.string)
+      suggesteds = JSON.parse(keywords_io.string)
       @logger.an_event.debug "suggested keywords as saas for #{keyword} : #{suggesteds}"
 
       suggesteds

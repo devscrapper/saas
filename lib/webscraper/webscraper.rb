@@ -15,6 +15,7 @@ module Webscrapers
   XVFB_NOT_START = 1411
   FIREFOX_NOT_START = 1412
   DRIVER_NOT_STOP = 1413
+  PAGE_NOT_FULL_LOAD = 1414
 
 
   class Webscraper
