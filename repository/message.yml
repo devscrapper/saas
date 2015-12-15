@@ -131,3 +131,5 @@
 1800: "argument [variable] not define"
 1801: "action [action] unknown"
 1802: "action [action] not execute"
+2000: "links of url [url] not scraped"
+2001: "scheme [:scheme] is not acceptable scheme [:http, :https] in url [url]"
