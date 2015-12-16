@@ -107,16 +107,18 @@ EventMachine.run {
 
 
   logger.a_log.info "scraper server is running"
-  geolocation_factory = nil
+  begin
   case opts[:proxy_type]
     when "none"
 
       logger.a_log.info "none geolocation"
+      geolocation = nil
 
     when "factory"
 
       logger.a_log.info "factory geolocation"
       geolocation_factory = Geolocations::GeolocationFactory.new(delay_periodic_load_geolocations * 60, logger)
+      geolocation = geolocation_factory.get
 
     when "http"
 
@@ -125,10 +127,16 @@ EventMachine.run {
       geo_flow.write(["fr", opts[:proxy_type], opts[:proxy_ip], opts[:proxy_port], opts[:proxy_user], opts[:proxy_pwd]].join(Geolocations::Geolocation::SEPARATOR))
       geo_flow.close
       geolocation_factory = Geolocations::GeolocationFactory.new(delay_periodic_load_geolocations * 60, logger)
+      geolocation = geolocation_factory.get
 
   end
+  rescue Exception => e
+    logger.a_log.fatal "keywords saas stops abruptly : #{e.message}"
+    EventMachine.stop
 
-  EventMachine.start_server "0.0.0.0", listening_port, BacklinksConnection, geolocation_factory, webscraper_factory, logger
+  else
+  EventMachine.start_server "0.0.0.0", listening_port, BacklinksConnection, geolocation, webscraper_factory, logger
+  end
 }
 logger.a_log.info "backlinks saas started"
 

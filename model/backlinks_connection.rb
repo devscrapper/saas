@@ -11,16 +11,14 @@ class BacklinksConnection < EM::HttpServer::Server
   TMP = File.expand_path(File.join("..", "..", "tmp"), __FILE__)
 
   attr :logger,
-       :geolocation_factory,
        :webscraper_factory,
        :geolocation
 
 
-  def initialize(geolocation_factory, webscraper_factory, logger)
+  def initialize(geolocation, webscraper_factory, logger)
     super
     @logger = logger
-    @geolocation_factory = geolocation_factory
-    @geolocation = @geolocation_factory.nil? ? nil : @geolocation_factory.get
+    @geolocation = @geolocation
     @webscraper_factory = webscraper_factory
   end
 
