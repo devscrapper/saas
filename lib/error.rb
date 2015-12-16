@@ -1,3 +1,4 @@
+#encoding:utf-8
 require_relative 'message'
 module Errors
   #-----------------------------------------------------------------------------------------------------------------
@@ -39,7 +40,12 @@ module Errors
           @history = Array.new(error.history)
         else
           @origin_code = -1
-          @origin_lib = error.message
+
+          if ["ASCII-8BIT", "US_ASCII"].include?(error.message.to_s.encoding.name)
+            @origin_lib = error.message.to_s.dump.force_encoding("UTF-8")
+          else
+            @origin_lib = error.message
+          end
         end
       end
 

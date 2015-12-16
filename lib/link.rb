@@ -15,7 +15,7 @@ module Links
   include Addressable
   LINKS_NOT_SCRAPED = 2000
   SCHEME_NOT_VALID = 2001
-
+  NO_LIMIT = 0
   @logger = nil
   class Page
     include Errors
@@ -38,7 +38,7 @@ module Links
 
     def initialize(url, document)
       begin
-
+        @links = []
         @url = url
         @document = document
         @parsed_document ||= Nokogiri::HTML(@document)
@@ -222,9 +222,9 @@ module Links
 
     begin
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "url"}) if url.nil? or url.empty?
-      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "host"}) if host.nil?
+      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "host"}) if host.nil?  or host.empty?
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "types"}) if types.nil? or types.empty?
-      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "schemes"}) if schemes.nil?
+      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "schemes"}) if schemes.nil? or schemes.empty?
 
 
       page = open(url,

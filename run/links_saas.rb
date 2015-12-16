@@ -102,28 +102,38 @@ EventMachine.run {
 
 
   logger.a_log.info "scraper server is running"
-  geolocation_factory = nil
-  case opts[:proxy_type]
-    when "none"
 
-      logger.a_log.info "none geolocation"
+  begin
+    case opts[:proxy_type]
+      when "none"
 
-    when "factory"
+        logger.a_log.info "none geolocation"
+        geolocation = nil
 
-      logger.a_log.info "factory geolocation"
-      geolocation_factory = Geolocations::GeolocationFactory.new(delay_periodic_load_geolocations * 60, logger)
+      when "factory"
 
-    when "http"
+        logger.a_log.info "factory geolocation"
+        geolocation_factory = Geolocations::GeolocationFactory.new(delay_periodic_load_geolocations * 60, logger)
+        geolocation = geolocation_factory.get
+      when "http"
 
-      logger.a_log.info "default geolocation : #{opts[:proxy_ip]}:#{opts[:proxy_port]}"
-      geo_flow = Flow.new(TMP, "geolocations", :none , $staging, Date.today)
-      geo_flow.write(["fr", opts[:proxy_type], opts[:proxy_ip], opts[:proxy_port], opts[:proxy_user], opts[:proxy_pwd]].join(Geolocations::Geolocation::SEPARATOR))
-      geo_flow.close
-      geolocation_factory = Geolocations::GeolocationFactory.new(delay_periodic_load_geolocations * 60, logger)
+        logger.a_log.info "default geolocation : #{opts[:proxy_ip]}:#{opts[:proxy_port]}"
+        geo_flow = Flow.new(TMP, "geolocations", :none, $staging, Date.today)
+        geo_flow.write(["fr", opts[:proxy_type], opts[:proxy_ip], opts[:proxy_port], opts[:proxy_user], opts[:proxy_pwd]].join(Geolocations::Geolocation::SEPARATOR))
+        geo_flow.close
+        geolocation_factory = Geolocations::GeolocationFactory.new(delay_periodic_load_geolocations * 60, logger)
+        geolocation = geolocation_factory.get
+    end
+
+  rescue Exception => e
+    logger.a_log.fatal "links saas stops abruptly : #{e.message}"
+    EventMachine.stop
+
+  else
+
+    EventMachine.start_server "0.0.0.0", listening_port, LinksConnection, geolocation, logger
 
   end
-
-  EventMachine.start_server "0.0.0.0", listening_port, LinksConnection, geolocation_factory, logger
 }
 logger.a_log.info "links saas started"
 

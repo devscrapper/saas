@@ -93,7 +93,7 @@
 1202: "advert not found"
 1203: "none advert [advert]"
 1300: "argument [variable] not define"
-1301: "none geolocation"
+1301: "none geolocation available"
 1302: "geolocation has bad properties ([geo])"
 1303: "geolocation ([geo]) not available"
 1304: "geolocation file [path] not found"

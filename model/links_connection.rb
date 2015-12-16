@@ -13,15 +13,13 @@ class LinksConnection < EM::HttpServer::Server
   ACTION_NOT_EXECUTE = 1802
 
   attr :logger,
-       :geolocation_factory,
        :geolocation
 
 
-  def initialize(geolocation_factory, logger)
+  def initialize(geolocation, logger)
     @logger = logger
     super
-    @geolocation_factory = geolocation_factory
-    @geolocation = @geolocation_factory.nil? ? nil : @geolocation_factory.get
+    @geolocation = geolocation
   end
 
   def process_http_request
@@ -76,9 +74,9 @@ class LinksConnection < EM::HttpServer::Server
 
               results = scrape(query_values["url"],
                                query_values["host"],
-                               query_values["schemes"],
-                               query_values["types"],
-                               query_values["count"])
+                               query_values["types"].split('|').map!{|t| t.to_sym},
+                               query_values["schemes"].split('|').map!{|s| s.to_sym},
+                               query_values["count"].to_i)
 
             rescue Error => e
               results = e
@@ -138,7 +136,7 @@ class LinksConnection < EM::HttpServer::Server
 
     page = Links::scrape(url, host, types, schemes, count, opts)
 
-    @logger.an_event.info "links scraped for #{url}"
+    @logger.an_event.info "#{page.links.size} links scraped for #{url}"
 
     page.to_json
   end
