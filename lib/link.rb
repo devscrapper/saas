@@ -220,9 +220,11 @@ module Links
       @logger.an_event.debug "type proxy #{type_proxy}, proxy #{proxy}" if !type_proxy.nil? and !proxy.nil?
     end
 
+    try_count = 3
+
     begin
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "url"}) if url.nil? or url.empty?
-      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "host"}) if host.nil?  or host.empty?
+      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "host"}) if host.nil? or host.empty?
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "types"}) if types.nil? or types.empty?
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "schemes"}) if schemes.nil? or schemes.empty?
 
@@ -238,15 +240,18 @@ module Links
 
 
     rescue Exception => e
+      sleep 5
+      try_count -= 1
+      retry if try_count > 0
       raise Error.new(LINKS_NOT_SCRAPED, :values => {:url => url}, :error => e)
 
     else
-
       scraped_page = Page.new(url, page)
       scraped_page.title()
       scraped_page.body(:text)
       scraped_page.extract_links(host, count, schemes, types)
       scraped_page
+
     ensure
 
 
