@@ -18,7 +18,7 @@ class BacklinksConnection < EM::HttpServer::Server
   def initialize(geolocation, webscraper_factory, logger)
     super
     @logger = logger
-    @geolocation = @geolocation
+    @geolocation = geolocation
     @webscraper_factory = webscraper_factory
   end
 
