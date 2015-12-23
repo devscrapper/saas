@@ -71,7 +71,8 @@ set :shared_children, ["archive",
                        "log",
                        "tmp"]
 set :server_list, ["keywords_#{application}",
-                   "referrals_#{application}"]
+                   "referrals_#{application}",
+                   "links_#{application}"]
 
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -169,10 +170,10 @@ namespace :deploy do
   task :start, :roles => :app, :except => {:no_release => true} do
     server_list.each { |server|
       begin
-             run "#{sudo} initctl start #{server}"
-           rescue Exception => e
-             p "#{server} not start : #{e.message}"
-           end
+        run "#{sudo} initctl start #{server}"
+      rescue Exception => e
+        p "#{server} not start : #{e.message}"
+      end
     }
   end
 
