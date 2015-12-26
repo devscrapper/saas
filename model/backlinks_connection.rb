@@ -143,6 +143,6 @@ class BacklinksConnection < EM::HttpServer::Server
 
     @logger.an_event.info "evaluated backlink #{backlink} : #{landing_url} is backlink ? #{kw.is_a_backlink}"
 
-    kw.is_a_backlink.to_json
+   {"is_a_backlink" => kw.is_a_backlink}.to_json
   end
 end
