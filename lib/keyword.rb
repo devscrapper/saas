@@ -571,7 +571,7 @@ module Keywords
 
 
       driver.navigate_to "http://fr.semrush.com/fr/"; @logger.an_event.debug "navigate to #{driver.current_url}"
-      @logger.an_event.debug "page source of url #{driver.current_url} : #{driver.page_source}"
+      #@logger.an_event.debug "page source of url #{driver.current_url} : #{driver.page_source}"
       driver.one_element_is_present([[:css, "button.js-authentication-login.s-btn.-xs.-success"],
                                      [:css, "button.btn.btn_brand"],
                                      [:css, "i.s-icon.-s.-enter"]]).click

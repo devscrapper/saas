@@ -122,7 +122,7 @@ before 'rvm:install_ruby', 'rvm:create_gemset'
 after 'rvm:install_ruby', 'apres:install_ruby', 'apres:install_imagemagick', 'apres:install_firefox', 'apres:install_xfvb'
 before 'deploy:setup', 'rvm:create_alias', 'rvm:create_wrappers', 'deploy:gem_list'
 after "deploy:update", "apres:update", "deploy:start", "deploy:status"
-#before "deploy:update"#, "deploy:stop", "log:delete"
+before "deploy:update", "deploy:stop", "log:delete"
 
 
 #----------------------------------------------------------------------------------------------------------------------
