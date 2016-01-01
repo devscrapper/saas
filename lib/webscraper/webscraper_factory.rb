@@ -55,12 +55,13 @@ module Webscrapers
 
         end
 
+        webscrapper.start
+
       rescue Exception => e
         @logger.an_event.error e.message
         raise Error.new(SCRAPER_NOT_BOOK, :error => e)
 
       else
-        webscrapper.start
         @logger.an_event.debug "webscraper booked #{webscrapper.to_s}"
         webscrapper # ne pas deplacer dnas ensure sinon retourn true  mais pas l'objet
 

@@ -231,6 +231,7 @@ module Webscrapers
         start_firefox
 
       rescue Exception => e
+        @headless.stop
         raise Error.new(DRIVER_NOT_START, :error => e)
 
       end
