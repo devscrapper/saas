@@ -6,7 +6,7 @@ source "http://gems.github.com"
 gem 'eventmachine', '~> 1.0.8'
 gem 'em-http-server', '~> 0.1.8'
 gem 'logging', '~> 1.8.1'
-gem 'selenium-webdriver', '2.47.1'
+gem 'selenium-webdriver', '2.48.1'
 gem 'hpricot', '0.8.6'
 gem 'nokogiri', '1.6.0'
 gem 'thread', '0.1.4'
