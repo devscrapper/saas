@@ -48,10 +48,14 @@ module Backlinks
 
     begin
       #recherche du domaine sans http sur majectic
-      input = driver.find_element(:id, 'search_text')
-      input.clear
-      input.send_keys hostname
-      driver.find_element(:css, "input[type='submit']").click
+      # input = driver.find_element(:id, 'search_text')
+      # input.clear
+      # input.send_keys hostname
+      # driver.find_element(:css, "input[type='submit']").click
+
+
+      driver.navigate_to "https://fr.majestic.com/reports/site-explorer/top-backlinks?q=#{hostname}"
+      @logger.an_event.debug "navigate to #{driver.current_url}"
 
       @logger.an_event.debug "search in majestic #{hostname}"
 
