@@ -451,7 +451,7 @@ module Keywords
 
           nxt = driver.find_element(:css, 'a#pnnext.pn')
 
-          if !found and index_page < max_count_page - 1 and !nxt.nil?
+          if !found and index_page <= max_count_page - 1 and !nxt.nil?
             nxt.click
 
           else
@@ -521,7 +521,7 @@ module Keywords
           nxt = Nokogiri::HTML(page).css('a#pg-next').first
 
           # passe à la page suivante
-          if !found and index_page < max_count_page - 1 and !nxt.nil?
+          if !found and index_page <= max_count_page - 1 and !nxt.nil?
             url = nxt.attributes["href"].value
 
           else
