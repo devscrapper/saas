@@ -202,7 +202,7 @@ class KeywordsConnection < EM::HttpServer::Server
 
     kw.evaluate(domain, webscraper, @geolocation.to_json)
 
-    @logger.an_event.info "evaluated keywords #{keywords} : #{kw.engines}"
+    @logger.an_event.info "evaluation keywords #{keywords} is #{kw.engines}"
 
     kw.engines.to_json
 

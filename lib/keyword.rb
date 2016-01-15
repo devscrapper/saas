@@ -428,32 +428,31 @@ module Keywords
 
         max_count_page.times { |index_page|
 
-          driver.find_elements(:css, 'h3.r > a').each { |link|
-            # Nokogiri::HTML(page).css('h3.r > a').each { |link|
-            begin
-              # soit la landing url est = link
-              # soit le domain du website appartient (sous chaine) d'un link
-              url_scrapped = link["href"]
-              uri_scrapped = URI.parse(url_scrapped)
+           driver.find_elements(:css, 'h3.r > a').each { |link|
+              begin
+                # soit la landing url est = link
+                # soit le domain du website appartient (sous chaine) d'un link
+                url_scrapped = link["href"]
+                uri_scrapped = URI.parse(url_scrapped)
 
-            rescue Exception => e
+              rescue Exception => e
 
-            else
-              found = uri_scrapped.hostname.include?(domain) unless uri_scrapped.hostname.nil?
+              else
+                found = uri_scrapped.hostname.include?(domain) unless uri_scrapped.hostname.nil?
+                p "page #{index_page + 1} : #{uri_scrapped} : domain found ? #{found}"
+                if found
+                  @engines.merge!({:google => {:url => url_scrapped, :index => index_page + 1}})
+                  break
+                end
 
-              if found
-                @engines.merge!({:google => {:url => url_scrapped, :index => index_page + 1}})
-                break
               end
-
-            end
-          }
+            }
 
           nxt = driver.find_element(:css, 'a#pnnext.pn')
 
           if !found and index_page <= max_count_page - 1 and !nxt.nil?
             nxt.click
-
+            sleep 2 # necessaire pour eviter de passer trop vite de page en page car sinon il ne detecte pas les lien ; hum hum , empirique et valuable testing
           else
             break
 
