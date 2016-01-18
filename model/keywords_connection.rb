@@ -35,6 +35,7 @@ class KeywordsConnection < EM::HttpServer::Server
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "action"}) if query_values["action"].nil? or query_values["action"].empty?
 
       case query_values["action"]
+        when "online"
 
         when "scrape"
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if query_values["hostname"].nil? or query_values["hostname"].empty?
@@ -98,8 +99,10 @@ class KeywordsConnection < EM::HttpServer::Server
             @webscraper_factory.free(webscraper) unless webscraper.nil?
 
           end
-
-        when "suggest", "evaluate"
+        #"http://#{saas_host}:#{saas_port}/?action=suggest&keywords=#{keyword}")
+        #"http://#{saas_host}:#{saas_port}/?action=evaluate&keywords=#{@words}&domain=#{domain}")
+        #http://#{saas_host}:#{saas_port}/?action=online
+        when "suggest", "evaluate", "online"
           # autorise une execution concurrente de plusieurs demande
 
           action = proc {
@@ -115,6 +118,8 @@ class KeywordsConnection < EM::HttpServer::Server
                 when "evaluate"
                   results = evaluate(query_values["keywords"], query_values["domain"], webscraper)
 
+                when "online"
+                  results = "OK"
               end
 
             rescue Error => e

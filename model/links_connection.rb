@@ -27,12 +27,13 @@ class LinksConnection < EM::HttpServer::Server
     # Check input data
     #------------------------------------------------------------------------------------------------------------------
     begin
-    #TODO gerer les caractere encodé en http exe url :  http://192.168.1.88:9253/?action=scrape&&url=http://centre.epilation-laser-definitive.info/ville-971-saint_fran&ccedil;ois.htm&host=http://www.epilation-laser-definitive.info/&schemes=http&types=global&count=0
+      #TODO gerer les caractere encodé en http exe url :  http://192.168.1.88:9253/?action=scrape&&url=http://centre.epilation-laser-definitive.info/ville-971-saint_fran&ccedil;ois.htm&host=http://www.epilation-laser-definitive.info/&schemes=http&types=global&count=0
       query_values = Addressable::URI.parse("?#{Addressable::URI.unencode_component(@http_query_string)}").query_values
 
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "action"}) if query_values["action"].nil? or query_values["action"].empty?
 
       case query_values["action"]
+        when "online"
 
         when "scrape"
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "url"}) if query_values["url"].nil? or query_values["url"].empty?
@@ -64,8 +65,12 @@ class LinksConnection < EM::HttpServer::Server
       response.send_response
 
     else
-
+      ##http://#{saas_host}:#{saas_port}/?action=online
+      #http://192.168.1.88:9253/?action=scrape&&url=http://centre-manche.epilation-laser-definitive.info/ville-50-cherbourg_octeville.htm&host=http://www.epilation-laser-definitive.info/&schemes=http&types=global&count=0
       case query_values["action"]
+        when "online"
+          results = "OK"
+
         when "scrape"
           # autorise une execution concurrente de plusieurs demande
 
@@ -75,8 +80,8 @@ class LinksConnection < EM::HttpServer::Server
 
               results = scrape(query_values["url"],
                                query_values["host"],
-                               query_values["types"].split('|').map!{|t| t.to_sym},
-                               query_values["schemes"].split('|').map!{|s| s.to_sym},
+                               query_values["types"].split('|').map! { |t| t.to_sym },
+                               query_values["schemes"].split('|').map! { |s| s.to_sym },
                                query_values["count"].to_i)
 
             rescue Error => e

@@ -32,6 +32,7 @@ class BacklinksConnection < EM::HttpServer::Server
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "action"}) if query_values["action"].nil? or query_values["action"].empty?
 
       case query_values["action"]
+        when "online"
 
         when "scrape"
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if query_values["hostname"].nil? or query_values["hostname"].empty?
@@ -65,7 +66,9 @@ class BacklinksConnection < EM::HttpServer::Server
     else
       begin
 
-
+        #"http://#{saas_host}:#{saas_port}/?action=scrape&hostname=#{hostname}"
+        #"http://#{saas_host}:#{saas_port}/?action=evaluate&backlink=#{@url}&landing_url=#{landing_url}")
+        #http://#{saas_host}:#{saas_port}/?action=online
         case query_values["action"]
           when "scrape"
             webscraper = @webscraper_factory.book(@geolocation)
@@ -75,6 +78,8 @@ class BacklinksConnection < EM::HttpServer::Server
           when "evaluate"
             results = evaluate(query_values["backlink"], query_values["landing_url"])
 
+          when "online"
+            results = "OK"
           else
             raise Error.new(ACTION_UNKNOWN, :values => {:action => query_values["action"]})
         end
@@ -143,6 +148,6 @@ class BacklinksConnection < EM::HttpServer::Server
 
     @logger.an_event.info "evaluated backlink #{backlink} : #{landing_url} is backlink ? #{kw.is_a_backlink}"
 
-   {"is_a_backlink" => kw.is_a_backlink}.to_json
+    {"is_a_backlink" => kw.is_a_backlink}.to_json
   end
 end
