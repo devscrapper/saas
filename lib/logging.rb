@@ -48,7 +48,8 @@ module Logging
          :domain,
          :authentification,
          :auto_flushing,
-         :level
+         :level,
+         :from
 
     alias :a_log :logger
     alias :an_event :logger
@@ -81,6 +82,7 @@ module Logging
           @authentification = parameters.authentification
           @auto_flushing = parameters.auto_flushing
           @level = parameters.level
+          @from = parameters.from
           raise ArgumentError, "parameter <address> is undefine" if @address.nil?
           raise ArgumentError, "parameter <user_name> is undefine" if @user_name.nil?
           raise ArgumentError, "parameter <password> is undefine" if @password.nil?
@@ -89,6 +91,7 @@ module Logging
           raise ArgumentError, "parameter <authentification> is undefine" if @authentification.nil?
           raise ArgumentError, "parameter <auto_flushing> is undefine" if @auto_flushing.nil?
           raise ArgumentError, "parameter <level> is undefine" if @level.nil?
+          raise ArgumentError, "parameter <from> is undefine" if @from.nil?
         end
 
         param_1(opts) if @debugging and [STAGING_TEST, STAGING_PROD].include?(@staging) and @main
@@ -121,7 +124,7 @@ module Logging
       #      Cette option est clairement destinée à l'envoi d'eMails depuis une connexion appartenant à un opérateur différent.
 
       Logging::appenders.email('email',
-                               :from => "error@log.com",
+                               :from => @from,
                                :to => "olinouane@gmail.com",
                                :subject => "Application Error []",
                                :address => @address,

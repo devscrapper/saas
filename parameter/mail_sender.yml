@@ -11,6 +11,7 @@ development:
   :authentification: :login #utilisé par /lib/logging /lib/mail_sender
   :auto_flushing: 2         #utilisé par /lib/logging
   :level: :error            #log les fatal et error message ; utilisé par /lib/logging
+  :from: saas@gmail.com     #emtteur ; utilisé par /lib/logging
   :debugging: true
 
 test:
@@ -22,6 +23,7 @@ test:
   :authentification: :login
   :auto_flushing: 2         #utilisé par /lib/logging
   :level: :error            #log les fatal et error message ; utilisé par /lib/logging
+  :from: saas@gmail.com     #emtteur ; utilisé par /lib/logging
   :debugging: false
 
 production:
@@ -33,4 +35,5 @@ production:
   :authentification: :login
   :auto_flushing: 2         #utilisé par /lib/logging
   :level: :error            #log les fatal et error message ; utilisé par /lib/logging
+  :from: saas@gmail.com     #emtteur ; utilisé par /lib/logging
   :debugging: false
