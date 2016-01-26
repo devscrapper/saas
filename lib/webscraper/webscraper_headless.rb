@@ -246,10 +246,10 @@ module Webscrapers
 
       rescue Exception => e
         count -= 1
-        logger.event.warn "#{count} try to stop webdriver "
+        logger.an_event.warn "#{count} try to stop webdriver "
         retry if count > 0
         #raise Error.new(DRIVER_NOT_STOP, :error => e)
-        logger.event.error "dont to stop webdriver #{e}"
+        logger.an_event.error "dont to stop webdriver #{e}"
       ensure
         @headless.destroy
 
