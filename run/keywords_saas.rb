@@ -100,7 +100,7 @@ logger.a_log.info "staging : #{$staging}"
 
 
 webscraper_factory = Webscrapers::WebscraperFactory.new(opts[:webdriver_with_gui], logger)
-
+begin
 EventMachine.run {
   Signal.trap("INT") { EventMachine.stop }
   Signal.trap("TERM") { EventMachine.stop }
@@ -108,7 +108,7 @@ EventMachine.run {
 
   logger.a_log.info "scraper server is running"
 
-  begin
+
     case opts[:proxy_type]
       when "none"
 
@@ -134,14 +134,15 @@ EventMachine.run {
 
     EventMachine.start_server "0.0.0.0", listening_port, KeywordsConnection, geolocation, webscraper_factory, logger
 
-  rescue Exception => e
-    logger.a_log.fatal e
-    logger.a_log.warn "keywords saas restart"
-    retry
-    logger.a_log.fatal "keywords saas stops abruptly : #{e.message}"
 
-  end
 }
+rescue Exception => e
+  logger.a_log.fatal e
+  logger.a_log.warn "keywords saas restart"
+  retry
+  logger.a_log.fatal "keywords saas stops abruptly : #{e.message}"
+
+end
 logger.a_log.info "keywords saas started"
 
 
