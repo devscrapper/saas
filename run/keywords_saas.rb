@@ -131,12 +131,14 @@ EventMachine.run {
         geolocation = geolocation_factory.get
 
     end
-  rescue Exception => e
-    logger.a_log.fatal "keywords saas stops abruptly : #{e.message}"
-    EventMachine.stop
 
-  else
     EventMachine.start_server "0.0.0.0", listening_port, KeywordsConnection, geolocation, webscraper_factory, logger
+
+  rescue Exception => e
+    logger.a_log.fatal e
+    logger.a_log.warn "keywords saas restart"
+    retry
+    logger.a_log.fatal "keywords saas stops abruptly : #{e.message}"
 
   end
 }

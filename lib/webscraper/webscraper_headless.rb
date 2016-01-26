@@ -239,12 +239,17 @@ module Webscrapers
     end
 
     def stop
+      count = 10
+      logger = Logging::Log.new(self, :staging => $staging, :id_file => File.basename(__FILE__, ".rb"), :debugging => $debugging)
       begin
         @driver.quit
 
       rescue Exception => e
-        raise Error.new(DRIVER_NOT_STOP, :error => e)
-
+        i -= 1
+        logger.event.warn "#{count} try to stop webdriver "
+        retry if count > 0
+        #raise Error.new(DRIVER_NOT_STOP, :error => e)
+        logger.event.error "dont to stop webdriver #{e}"
       ensure
         @headless.destroy
 
