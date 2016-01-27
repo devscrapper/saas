@@ -227,10 +227,18 @@ module Webscrapers
 
       end
 
+      count = 10
+      logger = Logging::Log.new(self, :staging => $staging, :id_file => File.basename(__FILE__, ".rb"), :debugging => $debugging)
       begin
         start_firefox
 
       rescue Exception => e
+        count -= 1
+        logger.an_event.warn "#{count} try to start webdriver "
+        sleep 1
+        retry if count > 0
+        logger.an_event.error "dont start webdriver #{e}"
+        logger.an_event.debug e
         @headless.stop
         raise Error.new(DRIVER_NOT_START, :error => e)
 
