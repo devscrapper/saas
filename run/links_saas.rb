@@ -2,10 +2,12 @@
 # encoding: UTF-8
 require 'yaml'
 require 'trollop'
+require 'rufus-scheduler'
 require_relative '../lib/logging'
 require_relative '../lib/parameter'
 require_relative '../lib/geolocation/geolocation_factory'
 require_relative '../model/links_connection'
+require_relative '../lib/supervisor'
 =begin
 Bot scrape traffic source (referral, organic)
 Bot scrape hourly daily distribution
@@ -77,6 +79,7 @@ else
   $debugging = parameters.debugging
   delay_periodic_load_geolocations = parameters.delay_periodic_load_geolocations
   listening_port = parameters.listening_port
+  periodicity_supervision = parameters.periodicity_supervision
 end
 
 
@@ -88,6 +91,7 @@ logger.a_log.info "geolocation : #{opts[:proxy_type]}"
 logger.a_log.info "proxy ip:port : #{opts[:proxy_ip]}:#{opts[:proxy_port]}" if opts[:proxy_type] == "http"
 logger.a_log.info "proxy user/pwd : #{opts[:proxy_user]}:#{opts[:proxy_pwd]}" unless opts[:proxy_user].nil?
 logger.a_log.info "delay_periodic_load_geolocations (minute) : #{delay_periodic_load_geolocations}"
+logger.a_log.info "periodicity supervision : #{periodicity_supervision}"
 logger.a_log.info "debugging : #{$debugging}"
 logger.a_log.info "staging : #{$staging}"
 
@@ -95,15 +99,15 @@ logger.a_log.info "staging : #{$staging}"
 # MAIN
 #--------------------------------------------------------------------------------------------------------------------
 
+begin
+  EventMachine.run {
+    Signal.trap("INT") { EventMachine.stop }
+    Signal.trap("TERM") { EventMachine.stop }
 
-EventMachine.run {
-  Signal.trap("INT") { EventMachine.stop }
-  Signal.trap("TERM") { EventMachine.stop }
 
+    logger.a_log.info "scraper server is running"
+    Supervisor.send_online(File.basename(__FILE__, '.rb'))
 
-  logger.a_log.info "scraper server is running"
-
-  begin
     case opts[:proxy_type]
       when "none"
 
@@ -125,17 +129,27 @@ EventMachine.run {
         geolocation = geolocation_factory.get
     end
 
-  rescue Exception => e
-    logger.a_log.fatal "links saas stops abruptly : #{e.message}"
-    EventMachine.stop
-
-  else
-
+    Rufus::Scheduler.start_new.every periodicity_supervision do
+      Supervisor.send_online(File.basename(__FILE__, '.rb'))
+    end
     EventMachine.start_server "0.0.0.0", listening_port, LinksConnection, geolocation, logger
 
-  end
-}
-logger.a_log.info "links saas started"
+
+  }
+
+rescue Exception => e
+  logger.a_log.fatal e
+  logger.a_log.warn "links saas restart"
+  retry
+  logger.a_log.fatal "links saas stops abruptly : #{e.message}"
+
+end
+logger.a_log.info "links saas stopped"
+
+
+
+
+
 
 
 

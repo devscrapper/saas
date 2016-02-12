@@ -1,0 +1,15 @@
+
+development:
+  :statupweb_server_ip: localhost
+  :statupweb_server_port: 3000
+  :debugging: true
+
+test:
+  :statupweb_server_ip: 192.168.1.88
+  :statupweb_server_port: 3000
+  :debugging: true
+
+production:
+  :statupweb_server_ip: 192.168.1.88
+  :statupweb_server_port: 3000
+  :debugging: true

@@ -2,10 +2,12 @@
 # encoding: UTF-8
 require 'yaml'
 require 'trollop'
+require 'rufus-scheduler'
 require_relative '../lib/logging'
 require_relative '../lib/parameter'
 require_relative '../lib/geolocation/geolocation_factory'
 require_relative '../lib/webscraper/webscraper_factory'
+require_relative '../lib/supervisor'
 require_relative '../model/keywords_connection'
 =begin
 Bot scrape traffic source (referral, organic)
@@ -79,6 +81,7 @@ else
   $debugging = parameters.debugging
   delay_periodic_load_geolocations = parameters.delay_periodic_load_geolocations
   listening_port = parameters.listening_port
+  periodicity_supervision = parameters.periodicity_supervision
 end
 
 
@@ -91,6 +94,7 @@ logger.a_log.info "proxy ip:port : #{opts[:proxy_ip]}:#{opts[:proxy_port]}" if o
 logger.a_log.info "proxy user/pwd : #{opts[:proxy_user]}:#{opts[:proxy_pwd]}" unless opts[:proxy_user].nil?
 logger.a_log.info "webdriver with gui : #{opts[:webdriver_with_gui]}"
 logger.a_log.info "delay_periodic_load_geolocations (minute) : #{delay_periodic_load_geolocations}"
+logger.a_log.info "periodicity supervision : #{periodicity_supervision}"
 logger.a_log.info "debugging : #{$debugging}"
 logger.a_log.info "staging : #{$staging}"
 
@@ -101,13 +105,13 @@ logger.a_log.info "staging : #{$staging}"
 
 webscraper_factory = Webscrapers::WebscraperFactory.new(opts[:webdriver_with_gui], logger)
 begin
-EventMachine.run {
-  Signal.trap("INT") { EventMachine.stop }
-  Signal.trap("TERM") { EventMachine.stop }
+  EventMachine.run {
+    Signal.trap("INT") { EventMachine.stop }
+    Signal.trap("TERM") { EventMachine.stop }
 
 
-  logger.a_log.info "scraper server is running"
-
+    logger.a_log.info "scraper server is running"
+    Supervisor.send_online(File.basename(__FILE__, '.rb'))
 
     case opts[:proxy_type]
       when "none"
@@ -131,11 +135,14 @@ EventMachine.run {
         geolocation = geolocation_factory.get
 
     end
-
+    # supervision
+    Rufus::Scheduler.start_new.every periodicity_supervision do
+      Supervisor.send_online(File.basename(__FILE__, '.rb'))
+    end
     EventMachine.start_server "0.0.0.0", listening_port, KeywordsConnection, geolocation, webscraper_factory, logger
 
 
-}
+  }
 rescue Exception => e
   logger.a_log.fatal e
   logger.a_log.warn "keywords saas restart"
@@ -143,7 +150,7 @@ rescue Exception => e
   logger.a_log.fatal "keywords saas stops abruptly : #{e.message}"
 
 end
-logger.a_log.info "keywords saas started"
+logger.a_log.info "keywords saas sopped"
 
 
 
