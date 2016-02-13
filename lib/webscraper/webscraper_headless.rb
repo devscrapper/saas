@@ -219,7 +219,9 @@ module Webscrapers
     def start
       begin
         # sous linux utilisation de xfvb pour lancer le webdriver headless
-        @headless = Headless.new(reuse: false, destroy_at_exit: true)
+        #TODO pour supprimer l'erreur au start du firefox : essaiyer de reutiliser la session xvfb : reuse:true destroy_at_exit:false
+        #@headless = Headless.new(reuse: false, destroy_at_exit: true)
+        @headless = Headless.new(reuse: true, destroy_at_exit: false)
         @headless.start
 
       rescue Exception => e
@@ -236,7 +238,7 @@ module Webscrapers
         count -= 1
         logger.an_event.warn "#{count} try to start webdriver "
         sleep 1
-        retry if count > 0
+        retry if count > 0   #TODO supprimer le retry,  et le log mais conserver le rescue
         logger.an_event.error "dont start webdriver #{e}"
         logger.an_event.debug e
         @headless.stop
@@ -256,7 +258,7 @@ module Webscrapers
         count -= 1
         logger.an_event.warn "#{count} try to stop webdriver "
         sleep 1
-        retry if count > 0
+        retry if count > 0        #TODO supprimer le retry, le raise et le log mais conserver le rescue
         #raise Error.new(DRIVER_NOT_STOP, :error => e)
         logger.an_event.error "dont stop webdriver #{e}"
         logger.an_event.debug e
