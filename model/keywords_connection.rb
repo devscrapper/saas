@@ -37,7 +37,7 @@ class KeywordsConnection < EM::HttpServer::Server
       case query_values["action"]
         when "online"
 
-        when "scrape"
+        when "scrape", "count"
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if query_values["hostname"].nil? or query_values["hostname"].empty?
 
         when "suggest"
@@ -72,13 +72,14 @@ class KeywordsConnection < EM::HttpServer::Server
     else
 
       case query_values["action"]
-        when "scrape"
+        when "scrape", "count"
           # une seule instance de scrape à la fois car un seul id utilisateur pour semrush qui interdit le scrape concurrent
           begin
 
             webscraper = @webscraper_factory.book(@geolocation)
 
-            results = scrape(query_values["hostname"], webscraper)
+            results = scrape(query_values["hostname"], webscraper) if query_values["action"] == "scrape"
+            results = count(query_values["hostname"], webscraper) if query_values["action"] == "count"
 
           rescue Exception => e
             @logger.an_event.error e.message
@@ -188,6 +189,23 @@ class KeywordsConnection < EM::HttpServer::Server
     @logger.an_event.info "keywords scraped from semrush for #{hostname}"
 
     keywords_arr
+  end
+
+  def count(hostname, webscraper)
+    @logger.an_event.info "count keywords for #{hostname}"
+
+    Keywords::semrush_ident_authen(webscraper)
+
+    @logger.an_event.info "identification to semrush for #{hostname}"
+
+    opts = {:range => :selection}
+    opts.merge!(:geolocation => @geolocation.to_json) unless @geolocation.nil?
+
+    keywords_arr = Keywords::scrape(hostname, webscraper, opts)
+
+    @logger.an_event.info "count keywords scraped from semrush for #{hostname}"
+
+    {:count => keywords_arr.size}.to_json
   end
 
   def suggest(keywords, webscraper)
