@@ -34,7 +34,7 @@ class BacklinksConnection < EM::HttpServer::Server
       case query_values["action"]
         when "online"
 
-        when "scrape"
+        when "scrape", "count"
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if query_values["hostname"].nil? or query_values["hostname"].empty?
 
         when "evaluate"
@@ -65,18 +65,21 @@ class BacklinksConnection < EM::HttpServer::Server
 
     else
       begin
-
+        #http://localhost:9252/?action=count&hostname=www.epilation-laser-definitive.info
+        #"http://#{saas_host}:#{saas_port}/?action=count&hostname=#{hostname}"
         #"http://#{saas_host}:#{saas_port}/?action=scrape&hostname=#{hostname}"
         #"http://#{saas_host}:#{saas_port}/?action=evaluate&backlink=#{@url}&landing_url=#{landing_url}")
         #http://#{saas_host}:#{saas_port}/?action=online
         case query_values["action"]
-          when "scrape"
+          when "scrape", "count"
             webscraper = @webscraper_factory.book(@geolocation)
 
-            results = scrape(query_values["hostname"], webscraper)
+            results = scrape(query_values["hostname"], webscraper) if query_values["action"] == "scrape"
+            results = count(query_values["hostname"], webscraper) if query_values["action"] == "count"
 
           when "evaluate"
             results = evaluate(query_values["backlink"], query_values["landing_url"])
+
 
           when "online"
             results = "OK"
@@ -139,6 +142,23 @@ class BacklinksConnection < EM::HttpServer::Server
     backlinks
   end
 
+  def count(hostname, webscraper)
+    @logger.an_event.info "count backlinks for #{hostname}"
+
+    Backlinks::majestic_ident_authen(webscraper)
+
+    @logger.an_event.info "identification to majestic for #{hostname}"
+
+    opts = {}
+    opts.merge!(:geolocation => @geolocation.to_json) unless @geolocation.nil?
+
+    backlinks = Backlinks::scrape(hostname, webscraper, opts)
+
+    @logger.an_event.info "count backlinks scraped from majestic for #{hostname}"
+
+
+    {:count => backlinks.size}.to_json
+  end
   def evaluate(backlink, landing_url)
     @logger.an_event.info "evaluate backlink #{backlink}"
 
