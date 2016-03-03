@@ -83,17 +83,24 @@ module Links
     # ---------------------------------------------------------------------------------------------------------------------
     def extract_links(root_url = nil, count_link = NO_LIMIT, schemes = [:http], type = [:local, :global])
       @schemes = schemes
-      uri = URI.parse(root_url)
+      @root_url = URI.parse(root_url)
 
-      raise Error.new(SCHEME_NOT_VALID, :values => {:url => @url, :scheme => uri.scheme}) unless [:http, :https].include?(uri.scheme.to_sym)
+      raise Error.new(SCHEME_NOT_VALID, :values => {:url => @url, :scheme => uri.scheme}) unless [:http, :https].include?(@root_url.scheme.to_sym)
 
-      @root_url = "#{uri.scheme}://#{uri.host}:#{uri.port}/#{uri.path}/"
+
       @links = parsed_links.map { |l|
         begin
-          abs_l = absolutify_url(unrelativize_url(l))
+          if URI.parse(l).relative?
+            abs_l = @root_url.dup
+            abs_l.path = l
+
+          else
+            abs_l = URI.parse(l)
+          end
+
           # on ne conserve que les link qui r�pondent � la s�lection sur le
-          abs_l if acceptable_scheme?(abs_l) and # scheme
-              acceptable_link?(type, abs_l, @root_url) # le perim�tre : domaine, sous-domaine, hors du domaine
+          abs_l.to_s if acceptable_scheme?(abs_l.scheme) and # scheme
+              acceptable_link?(type, abs_l.to_s, @root_url.to_s) # le perim�tre : domaine, sous-domaine, hors du domaine
         rescue
         end
       }.compact
@@ -103,8 +110,8 @@ module Links
     end
 
     # ces deux fonctions doivent rester en public sinon cela bug
-    def acceptable_scheme?(l)
-      @schemes.include?(URI.parse(l).scheme.to_sym) or @schemes.include?(URI.parse(l).scheme)
+    def acceptable_scheme?(scheme)
+      @schemes.include?(scheme.to_sym) or @schemes.include?(scheme)
     end
 
     def acceptable_link?(type, l, r)
@@ -118,20 +125,20 @@ module Links
         if l.subdomain == r.subdomain and
             l.domain == r.domain and
             l.public_suffix == r.public_suffix
-          type.include?(:local) or type.include?("local")
+            (type.include?(:local) or type.include?("local"))
         else
           if l.domain == r.domain and
               l.public_suffix == r.public_suffix
-            type.include?(:global) or type.include?("global")
+              (type.include?(:global) or type.include?("global"))
           else
-            type.include?(:full) or type.include?("full")
+            (type.include?(:full) or type.include?("full"))
           end
         end
       else
         if r_host == URI.parse(l).host
-          type.include?(:local) or type.include?("local")
+            (type.include?(:local) or type.include?("local"))
         else
-          type.include?(:full)or type.include?("full")
+          (type.include?(:full)or type.include?("full"))
         end
       end
     end
