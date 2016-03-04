@@ -72,6 +72,7 @@ class KeywordsConnection < EM::HttpServer::Server
     else
 
       case query_values["action"]
+        #http://localhost:9251/?action=scrape&hostname=dfijgmsdfjgmdfjgdfljbdfljbgdfljbdflg
         when "scrape", "count"
           # une seule instance de scrape à la fois car un seul id utilisateur pour semrush qui interdit le scrape concurrent
           begin

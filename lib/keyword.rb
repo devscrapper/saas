@@ -428,25 +428,25 @@ module Keywords
 
         max_count_page.times { |index_page|
 
-           driver.find_elements(:css, 'h3.r > a').each { |link|
-              begin
-                # soit la landing url est = link
-                # soit le domain du website appartient (sous chaine) d'un link
-                url_scrapped = link["href"]
-                uri_scrapped = URI.parse(url_scrapped)
+          driver.find_elements(:css, 'h3.r > a').each { |link|
+            begin
+              # soit la landing url est = link
+              # soit le domain du website appartient (sous chaine) d'un link
+              url_scrapped = link["href"]
+              uri_scrapped = URI.parse(url_scrapped)
 
-              rescue Exception => e
+            rescue Exception => e
 
-              else
-                found = uri_scrapped.hostname.include?(domain) unless uri_scrapped.hostname.nil?
-                p "page #{index_page + 1} : #{uri_scrapped} : domain found ? #{found}"
-                if found
-                  @engines.merge!({:google => {:url => url_scrapped, :index => index_page + 1}})
-                  break
-                end
-
+            else
+              found = uri_scrapped.hostname.include?(domain) unless uri_scrapped.hostname.nil?
+              p "page #{index_page + 1} : #{uri_scrapped} : domain found ? #{found}"
+              if found
+                @engines.merge!({:google => {:url => url_scrapped, :index => index_page + 1}})
+                break
               end
-            }
+
+            end
+          }
 
           nxt = driver.find_element(:css, 'a#pnnext.pn')
 
@@ -655,7 +655,7 @@ module Keywords
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
 
 
-      driver.navigate_to "http://fr.semrush.com/fr/info/#{hostname}?db=fr" unless driver.current_url == "http://fr.semrush.com/fr/info/#{hostname}?db=fr"
+      driver.navigate_to "http://fr.semrush.com/fr/info/#{hostname}?db=fr" unless driver.current_url == "https://fr.semrush.com/fr/info/#{hostname}?db=fr"
 
     rescue Error => e
       if e.code == Webscrapers::PAGE_NOT_FULL_LOAD
@@ -682,81 +682,94 @@ module Keywords
     end
 
     begin
-      ##CompetitorsOrganicSearch > div.sem-widget-footer.clearfix > div.sem-widget-footer-rb.sem-widget-footer-export-links >
-      driver.find_element(:link, "Exporter").click
-      @logger.an_event.debug "click on Exporter"
 
-      element = driver.find_element(:css, "a.export-block-icon-link.export-block-icon-csv")
-      href = element.attribute('href')
-      @logger.an_event.debug "uri keywords csv file semrush : #{href}"
-
-      if !type_proxy.nil? and !proxy.nil?
-        keywords_io = open(href,
-                           "User-Agent" => driver.user_agent, # n'est pas obligatoire
-                           type_proxy => proxy)
-        @logger.an_event.debug "with proxy #{proxy} keywords csv file semrush downloaded #{keywords.to_yaml}"
-
-      else
-        keywords_io = open(href,
-                           "User-Agent" => driver.user_agent)
-        @logger.an_event.debug "keywords csv file semrush downloaded #{keywords.to_yaml}"
-
-      end
+      element = driver.is_element_present(:css, "div.sem-reports-padding.sem-report.sem-keyword-overview > div.summary-not-found-block > div.summary-not-found > h2")
 
     rescue Exception => e
-      raise Error.new(KEYWORD_NOT_SCRAPED, :values => {:hostname => hostname}, :error => e)
 
+    end
 
-    else
-      if keywords_f.nil?
-        keywords = keywords_io.read
-        @logger.an_event.debug "lecture du fichier csv et rangement dans string"
-        if range == :full
-          #String
-          # tout le contenu
-          keywords
+    if element.nil?  #pas trouver le texte "Sorry, we haven't found any information related to your request in the google.fr database."
+      begin
+        ##CompetitorsOrganicSearch > div.sem-widget-footer.clearfix > div.sem-widget-footer-rb.sem-widget-footer-export-links >
+        driver.find_element(:link, "Exporter").click
+        @logger.an_event.debug "click on Exporter"
+
+        element = driver.find_element(:css, "a.export-block-icon-link.export-block-icon-csv")
+        href = element.attribute('href')
+        @logger.an_event.debug "uri keywords csv file semrush : #{href}"
+
+        if !type_proxy.nil? and !proxy.nil?
+          keywords_io = open(href,
+                             "User-Agent" => driver.user_agent, # n'est pas obligatoire
+                             type_proxy => proxy)
+          @logger.an_event.debug "with proxy #{proxy} keywords csv file semrush downloaded #{keywords.to_yaml}"
 
         else
-          #Array
-          #select url & keywords colonne
-          keywords_arr = []
+          keywords_io = open(href,
+                             "User-Agent" => driver.user_agent)
+          @logger.an_event.debug "keywords csv file semrush downloaded #{keywords.to_yaml}"
 
-          CSV.parse(keywords,
-                    {headers: true,
-                     converters: :numeric,
-                     header_converters: :symbol}).each { |row|
-            keywords_arr << [row[:url], row[:keyword]]
-          }
-          keywords_arr
         end
+
+      rescue Exception => e
+        raise Error.new(KEYWORD_NOT_SCRAPED, :values => {:hostname => hostname}, :error => e)
+
+
       else
+        if keywords_f.nil?
+          keywords = keywords_io.read
+          @logger.an_event.debug "lecture du fichier csv et rangement dans string"
+          if range == :full
+            #String
+            # tout le contenu
+            keywords
 
-        if range == :full
-          #File
-          FileUtils.cp(keywords_io,
-                       keywords_f)
-          @logger.an_event.debug "copy du fichier csv dans flow #{keywords_f}"
+          else
+            #Array
+            #select url & keywords colonne
+            keywords_arr = []
 
+            CSV.parse(keywords,
+                      {headers: true,
+                       converters: :numeric,
+                       header_converters: :symbol}).each { |row|
+              keywords_arr << [row[:url], row[:keyword]]
+            }
+            keywords_arr
+          end
         else
-          #File
-          #select url & keywords colonne
-          keywords_f = File.open(keywords_f, "w+:bom|utf-8")
-          CSV.open(keywords_io,
-                   "r:bom|utf-8",
-                   {headers: true,
-                    converters: :numeric,
-                    header_converters: :symbol}).map.each { |row|
-            keywords_f.write("#{[row[:url], row[:keyword]].join(SEPARATOR1)}#{EOFLINE}")
-          }
+
+          if range == :full
+            #File
+            FileUtils.cp(keywords_io,
+                         keywords_f)
+            @logger.an_event.debug "copy du fichier csv dans flow #{keywords_f}"
+
+          else
+            #File
+            #select url & keywords colonne
+            keywords_f = File.open(keywords_f, "w+:bom|utf-8")
+            CSV.open(keywords_io,
+                     "r:bom|utf-8",
+                     {headers: true,
+                      converters: :numeric,
+                      header_converters: :symbol}).map.each { |row|
+              keywords_f.write("#{[row[:url], row[:keyword]].join(SEPARATOR1)}#{EOFLINE}")
+            }
+          end
+
+
         end
+
+      ensure
 
 
       end
-
-    ensure
-
-
+    else
+      []
     end
+
   end
 
 #keywords_file is absolute path file flow
