@@ -27,6 +27,7 @@ class LinksConnection < EM::HttpServer::Server
     # Check input data
     #------------------------------------------------------------------------------------------------------------------
     begin
+      @logger.an_event.debug "query string : #{@http_query_string}"
       #TODO gerer les caractere encodé en http exe url :  http://192.168.1.88:9253/?action=scrape&&url=http://centre.epilation-laser-definitive.info/ville-971-saint_fran&ccedil;ois.htm&host=http://www.epilation-laser-definitive.info/&schemes=http&types=global&count=0
       query_values = Addressable::URI.parse("?#{Addressable::URI.unencode_component(@http_query_string)}").query_values
 
@@ -48,6 +49,7 @@ class LinksConnection < EM::HttpServer::Server
       end
 
     rescue Exception => e
+
       @logger.an_event.error e.message
 
       response = EM::DelegatedHttpResponse.new(self)
