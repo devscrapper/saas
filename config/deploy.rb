@@ -72,7 +72,8 @@ set :shared_children, ["archive",
                        "tmp"]
 set :server_list, ["keywords_#{application}",
                    "referrals_#{application}",
-                   "links_#{application}"]
+                   "links_#{application}",
+                   "proxies_#{application}"]
 
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -93,7 +94,7 @@ set :rvm_install_with_sudo, true
 # param extraction git
 #----------------------------------------------------------------------------------------------------------------------
 
-ENV["path"] += ";d:\\\personnel\\portableGit\\bin" # acces au git local à la machine qui execute ce script
+ENV["path"] += ";d:\\personnel\\portableGit\\bin" # acces au git local à la machine qui execute ce script
 set :repository, "file://d:/personnel/referentiel/src/#{application}/.git"
 set :scm, "git"
 set :copy_dir, "d:\\temp" # reperoitr temporaire de d'extracion des fichiers du git pour les zipper
@@ -105,9 +106,9 @@ set :branch, "master" # version à déployer
 
 set :keep_releases, 3 # nombre de version conservées
 set :server_name, "192.168.1.88" # adresse du server de destination
-
+#set :server_name, "olgadays.synology.me:1022" #adresse du server de destination hors reseau local
 set :deploy_to, "/usr/local/rvm/wrappers/#{application}" # repertoire de deploiement de l'application
-#set :server_name, "olgadays.synology.me" #adresse du server de destination hors reseau local
+
 set :deploy_via, :copy # using a local scm repository which cannot be accessed from the remote machine.
 set :user, "eric"
 set :password, "Brembo01"
@@ -122,7 +123,7 @@ before 'rvm:install_ruby', 'rvm:create_gemset'
 after 'rvm:install_ruby', 'apres:install_ruby', 'apres:install_imagemagick', 'apres:install_firefox', 'apres:install_xfvb'
 before 'deploy:setup', 'rvm:create_alias', 'rvm:create_wrappers', 'deploy:gem_list'
 after "deploy:update", "apres:update", "deploy:start", "deploy:status"
-before "deploy:update", "deploy:stop", "log:delete"
+before "deploy:update", "deploy:stop" #, "log:delete"
 
 
 #----------------------------------------------------------------------------------------------------------------------
