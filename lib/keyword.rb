@@ -87,11 +87,11 @@ module Keywords
     # si opts is_a(Hash) alors => proxy, les rquete http passe par un proxy
     # si opts n'est pas un hash => driver
     # si opts = nil => pas de proxy pour requete http
-    def evaluate(domain, driver, geolocation=nil)
+    def evaluate_link(domain, driver, geolocation=nil)
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
 
       begin
-        google = Thread.new { Thread.current["name"] = :google; search_google(INDEX_MAX, domain, driver) }
+        google = Thread.new { Thread.current["name"] = :google; search_google(INDEX_MAX, domain, :link, driver) }
         yahoo = Thread.new { Thread.current["name"] = :yahoo; search_yahoo(INDEX_MAX, domain, geolocation) }
         bing = Thread.new { Thread.current["name"] = :bing; search_bing(INDEX_MAX, domain, geolocation) }
 
@@ -103,6 +103,18 @@ module Keywords
         ThreadsWait.all_waits(google, yahoo, bing) do |t|
 
         end
+      rescue Exception => e
+        raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:variable => "domain"}, :error => e)
+
+      end
+    end
+
+    def evaluate_sea(domain, driver, geolocation=nil)
+      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
+
+      begin
+        search_google(INDEX_MAX, domain, :sea, driver)
+
       rescue Exception => e
         raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:variable => "domain"}, :error => e)
 
@@ -403,7 +415,7 @@ module Keywords
       end
     end
 
-    def search_google(max_count_page, domain, driver)
+    def search_google(max_count_page, domain, type, driver)
       url = "https://www.google.fr/search?q=#{URI.encode(@words)}"
       type_proxy = nil
       proxy = nil
@@ -412,8 +424,15 @@ module Keywords
       begin
         raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
         raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "type"}) if type.nil? or type.empty?
         raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
 
+        case type
+          when :link # recherche les link
+            element_css = 'h3.r > a'
+          when :sea # recherche les Adsense
+            element_css = 'ol > li.ads-ad > h3 > a:nth-child(2)'
+        end
 
         driver.navigate_to "https://www.google.fr/"
         element = driver.find_element(:name, 'q')
@@ -428,7 +447,7 @@ module Keywords
 
         max_count_page.times { |index_page|
 
-          driver.find_elements(:css, 'h3.r > a').each { |link|
+          driver.find_elements(:css, element_css).each { |link|
             begin
               # soit la landing url est = link
               # soit le domain du website appartient (sous chaine) d'un link
@@ -689,7 +708,7 @@ module Keywords
 
     end
 
-    if element.nil?  #pas trouver le texte "Sorry, we haven't found any information related to your request in the google.fr database."
+    if element.nil? #pas trouver le texte "Sorry, we haven't found any information related to your request in the google.fr database."
       begin
         ##CompetitorsOrganicSearch > div.sem-widget-footer.clearfix > div.sem-widget-footer-rb.sem-widget-footer-export-links >
         driver.find_element(:link, "Exporter").click

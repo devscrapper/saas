@@ -18,10 +18,10 @@ class KeywordsConnection < EM::HttpServer::Server
        :geolocation
 
 
-  def initialize(geolocation, webscraper_factory, logger)
+  def initialize(geolocation_factory, webscraper_factory, logger)
     @logger = logger
     super
-    @geolocation = geolocation
+    @geolocation = geolocation_factory.get
     @webscraper_factory = webscraper_factory
   end
 
@@ -46,6 +46,7 @@ class KeywordsConnection < EM::HttpServer::Server
         when "evaluate"
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "keywords"}) if query_values["keywords"].nil? or query_values["keywords"].empty?
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if query_values["domain"].nil? or query_values["domain"].empty?
+          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "type"}) if query_values["type"].nil? or query_values["type"].empty?
 
         else
           raise Error.new(ACTION_UNKNOWN, :values => {:action => query_values["action"]})
@@ -102,7 +103,7 @@ class KeywordsConnection < EM::HttpServer::Server
 
           end
         #"http://#{saas_host}:#{saas_port}/?action=suggest&keywords=#{keyword}")
-        #"http://#{saas_host}:#{saas_port}/?action=evaluate&keywords=#{@words}&domain=#{domain}")
+        #"http://#{saas_host}:#{saas_port}/?action=evaluate&keywords=#{@words}&domain=#{domain}&type=#{sea|link}")
         #http://#{saas_host}:#{saas_port}/?action=online
         when "suggest", "evaluate", "online"
           # autorise une execution concurrente de plusieurs demande
@@ -118,7 +119,7 @@ class KeywordsConnection < EM::HttpServer::Server
                   results = suggest(query_values["keywords"], webscraper)
 
                 when "evaluate"
-                  results = evaluate(query_values["keywords"], query_values["domain"], webscraper)
+                  results = evaluate(query_values["keywords"], query_values["domain"], query_values["type"], webscraper)
 
                 when "online"
                   results = "OK"
@@ -219,12 +220,20 @@ class KeywordsConnection < EM::HttpServer::Server
     keywords_arr
   end
 
-  def evaluate(keywords, domain, webscraper)
+  def evaluate(keywords, domain, type, webscraper)
     @logger.an_event.info "evaluate keywords #{keywords}"
 
     kw = Keywords::Keyword.new(keywords)
 
-    kw.evaluate(domain, webscraper, @geolocation.to_json)
+    case type
+      when "link"
+        kw.evaluate_link(domain, webscraper, @geolocation.to_json)
+
+      when "sea"
+        kw.evaluate_sea(domain, webscraper, @geolocation.to_json)
+
+    end
+
 
     @logger.an_event.info "evaluation keywords #{keywords} is #{kw.engines}"
 

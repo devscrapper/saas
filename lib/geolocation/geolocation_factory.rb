@@ -112,7 +112,7 @@ module Geolocations
         #on sort de la boucle :
         # soit on a trouve une geo qui repond aux criteres passés si il y en a
         # soit parce que on les a passé tous les geo et il n'y a aucun geolocation qui satisfont les critères => exception
-        @logger.an_event.debug "geolocation find : #{geo.to_s}"
+        @logger.an_event.info "geolocation find : #{geo.to_s}"
         return geo
       ensure
 

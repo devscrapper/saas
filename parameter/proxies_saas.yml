@@ -1,0 +1,21 @@
+
+development:
+  :listening_port: 9254
+  :delay_periodic_get_proxy_list: 1 #en day
+  :periodicity_supervision: 15m    #(minute)
+  :proxy_list_url: http://www.valid-link.com/list.txt
+  :debugging: true
+
+test:
+  :listening_port: 9254
+  :delay_periodic_get_proxy_list: 1 #en day
+  :periodicity_supervision: 15m    #(minute)
+  :proxy_list_url: http://www.valid-link.com/list.txt
+  :debugging:  true
+
+production:
+  :listening_port: 9254
+  :delay_periodic_get_proxy_list: 1 #en day
+  :periodicity_supervision: 15m    #(minute)
+  :proxy_list_url: http://www.valid-link.com/list.txt
+  :debugging:  true

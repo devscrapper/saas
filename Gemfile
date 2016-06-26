@@ -18,6 +18,7 @@ gem 'headless', '2.2.0'
 gem 'addressable', '2.3.8'
 gem 'ruby-progressbar', '1.0.2'
 gem 'domainatrix', '~> 0.0.10'
+gem 'rest-client'
 
 
 # fin new gem
