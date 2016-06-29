@@ -30,9 +30,10 @@ set :pty, true
 set :use_sudo, true
 set :deploy_to, "/home/#{fetch(:user)}/apps/#{fetch(:application)}"
 set :rvm_ruby_version, '2.2.3'
-set :server_list, ["calendar_#{fetch(:application)}",
-                   "tasks_#{fetch(:application)}",
-                   "scheduler_#{fetch(:application)}"]
+set :server_list, ["backlinks_#{fetch(:application)}",
+                   "keywords_#{fetch(:application)}",
+                   "links_#{fetch(:application)}",
+                   "proxies_#{fetch(:application)}"]
 
 
 # Default branch is :master
