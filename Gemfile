@@ -5,20 +5,23 @@ source "http://gems.github.com"
 
 gem 'eventmachine', '~> 1.0.8'
 gem 'em-http-server', '~> 0.1.8'
-gem 'logging', '~> 1.8.1'
+gem 'logging', '~> 2.0.0'
+gem 'rufus-scheduler', '~> 2.0.24'
+gem 'ruby-progressbar', '~> 1.7.5'
+gem 'rest-client', '~> 1.8.0'
+
+
 gem 'selenium-webdriver', '2.50.0'
 gem 'hpricot', '0.8.6'
 gem 'nokogiri', '1.6.0'
 gem 'thread', '0.1.4'
 gem 'trollop', '2.0'
-gem 'rufus-scheduler', '~> 2.0.24'
-#gem 'activesupport', '3.2.12'
+
 gem 'user-agent-randomizer', '~> 0.2.0'
 gem 'headless', '2.2.0'
 gem 'addressable', '2.3.8'
-gem 'ruby-progressbar', '1.0.2'
 gem 'domainatrix', '~> 0.0.10'
-gem 'rest-client'
+
 
 
 # fin new gem
@@ -39,5 +42,6 @@ end
 
 group :production      do
 gem 'jwt', '~> 0.1.5'
+gem 'i18n', '~> 0.7.0'
 #gem 'net-ssh', '~> 2.8.0'
 end
