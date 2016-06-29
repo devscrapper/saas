@@ -25,10 +25,10 @@ gem 'rest-client'
 
 
 group :development do
-gem 'capistrano', '~> 2.15.6'
-gem 'rvm-capistrano', '~> 1.5.3'
-gem 'net-ssh', '~> 2.6.0'
-gem 'bundler', '~> 1.10.6'
+  gem 'capistrano-rvm'
+  gem 'capistrano', '~> 3.1'
+  gem 'capistrano-bundler', '~> 1.1.2'
+  gem 'sshkit-sudo'
 gem 'tzinfo-data', '~> 1.2014.5'
 
 end
