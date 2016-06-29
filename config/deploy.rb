@@ -27,7 +27,7 @@ set :github_access_token, '64c0b7864a901bc6a9d7cd851ab5fb431196299e'
 set :default, 'master'
 set :user, 'eric'
 set :pty, true
-set :use_sudo, false
+set :use_sudo, true
 set :deploy_to, "/home/#{fetch(:user)}/apps/#{fetch(:application)}"
 set :rvm_ruby_version, '2.2.3'
 set :server_list, ["calendar_#{fetch(:application)}",
@@ -64,6 +64,7 @@ set :default_env, {path: "/opt/ruby/bin:$PATH"}
 
 # Default value for keep_releases is 5
 set :keep_releases, 3
+
 
 #before 'deploy:check:linked_files', 'config:push'
 
