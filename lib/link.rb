@@ -59,7 +59,7 @@ module Links
 
     def title
       begin
-        @title ||= @parsed_document.title() #.gsub(/\t|\n|\r/, ''), permet d'enlever ces caracteres
+        @title ||= @parsed_document.title().gsub(/\t|\n|\r/, '') #, permet d'enlever ces caracteres
       rescue
         @title = ""
       end

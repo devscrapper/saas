@@ -114,7 +114,6 @@ module Logging
 
 
     def email()
-      #TODO valider le parametrage de l'appender mail
 
       #      port 25 : sans authentificationnote 2, connexion non sécurisée
       #      port 465 : authentification permettant l'envoi d'e-mails depuis n'importe quel point d'accès, connexion sécurisée
@@ -125,14 +124,14 @@ module Logging
 
       Logging::appenders.email('email',
                                :from => @from,
-                               :to => "olinouane@gmail.com",
-                               :subject => "Application Error []",
+                               :to => "errormanager8@gmail.com",
+                               :subject => "staging : #{@staging}, server : #{@id_file}",
                                :address => @address,
                                :port => @port,
                                :domain => @domain,
                                :user_name => @user_name,
                                :password => @password,
-                               :authentication => :@authentification,
+                               :authentication => @authentification,
                                :enable_starttls_auto => true,
                                :auto_flushing => @auto_flushing, # send an email after 2 messages have been buffered
                                :flush_period => 2, # send an email after 2 s

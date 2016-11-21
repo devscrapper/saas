@@ -7,8 +7,8 @@ require 'open-uri'
 require_relative '../lib/logging'
 require_relative '../lib/parameter'
 require_relative '../lib/geolocation/geolocation_factory'
-require_relative '../model/proxies_connection'
 require_relative '../lib/supervisor'
+require_relative '../model/proxies_connection'
 =begin
 saas get proxy list
 
@@ -99,9 +99,9 @@ begin
   }
 
 rescue Exception => e
-  logger.a_log.fatal e
+  logger.a_log.fatal e.message
   logger.a_log.warn "proxies saas restart"
-  retry
+  #retry
   logger.a_log.fatal "proxies saas stops abruptly : #{e.message}"
 
 end

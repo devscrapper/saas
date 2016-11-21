@@ -6,6 +6,7 @@ source "http://rubygems.org"
 gem 'eventmachine', '~> 1.0.8'
 gem 'em-http-server', '~> 0.1.8'
 gem 'logging', '~> 2.0.0'
+gem 'logging-email', '~>1.0.0'
 gem 'rufus-scheduler', '~> 2.0.24'
 gem 'ruby-progressbar', '~> 1.7.5'
 gem 'rest-client', '~> 1.8.0'
