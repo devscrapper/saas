@@ -19,7 +19,7 @@
 # le redemarrage des serveurs
 #---------------------------------------------------------------------------------------------------------------------
 
-lock '3.4.0'
+lock '3.4.1'
 
 set :application, 'saas'
 set :repo_url, "https://github.com/devscrapper/#{fetch(:application)}.git/"
@@ -208,7 +208,14 @@ namespace :deploy do
       end
     end
   end
+  task :environment do
+    on roles(:app) do
+      within release_path do
 
+        execute("echo 'staging: test' >  #{File.join(current_path, 'parameter', 'environment.yml')}")
+      end
+    end
+  end
 
 end
 
@@ -221,5 +228,6 @@ after "deploy:stop", "log:delete"
 # TO update gem  : uncomment under line
 after 'deploy:updating', 'deploy:bundle_install'
 after 'deploy:updating', "deploy:control"
+after 'deploy:updating', "deploy:environment"
 after "deploy:control", "deploy:start"
 after "deploy:start", "deploy:status"
