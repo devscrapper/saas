@@ -156,6 +156,46 @@ module Keywords
     end
 
     #----------------------------------------------------------------------------------------------------------------
+    # search(keywords, driver)
+    #----------------------------------------------------------------------------------------------------------------
+    # fournit la liste des resultats de recherche à partir des mot clé
+    #----------------------------------------------------------------------------------------------------------------
+    # input :
+    # mots clé
+    # en options :
+    # les propriétés d'une geolocation pou faire la requete
+    # un nom absolu de fichier pour stocker les couples [landing_link, keywords] ; aucun tableau ne sera fournit en Output
+    # output :
+    # un tableau dont chaque occurence contient le couple [landing_link, keywords]
+    # nom absolu de fichier passé en input contenant les données issues de semtush en l'état
+    #----------------------------------------------------------------------------------------------------------------
+    #----------------------------------------------------------------------------------------------------------------
+
+    #opts : contient soit un driver soit un proxy soit rien
+    # si opts is_a(Hash) alors => proxy, les rquete http passe par un proxy
+    # si opts n'est pas un hash => driver
+    # si opts = nil => pas de proxy pour requete http
+    def search(index, count_pages, driver, geolocation=nil)
+      begin
+        google = Thread.new { Thread.current["name"] = :google; search_google(count_pages, nil, :link, driver) }
+        yahoo = Thread.new { Thread.current["name"] = :yahoo; search_yahoo(count_pages, nil, geolocation) }
+        bing = Thread.new { Thread.current["name"] = :bing; search_bing(count_pages, nil, geolocation) }
+
+        #google.abort_on_exception = true
+        #yahoo.abort_on_exception = true
+        #bing.abort_on_exception = true
+
+        #ThreadsWait.all_waits(google) do |t|
+        ThreadsWait.all_waits(google, yahoo, bing) do |t|
+
+        end
+      rescue Exception => e
+        raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:variable => "domain"}, :error => e)
+
+      end
+    end
+
+    #----------------------------------------------------------------------------------------------------------------
     # google_suggest(hostname, driver)
     #----------------------------------------------------------------------------------------------------------------
     # fournit la liste des mots cles d'un domaine au moyen de semrush.com
@@ -268,7 +308,7 @@ module Keywords
 
     private
 
-    def search_bing(max_count_page, domain, geolocation)
+    def search_bing(max_count_page, domain=nil, geolocation)
       url = "http://www.bing.com/search?q=#{URI.encode(@words)}"
       type_proxy = nil
       proxy = nil
@@ -276,7 +316,7 @@ module Keywords
 
       begin
         raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
+        #raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
 
         type_proxy, proxy = Keywords::proxy(geolocation) unless geolocation == nil.to_json
 
@@ -303,10 +343,17 @@ module Keywords
             rescue Exception => e
 
             else
-              found = uri_scrapped.hostname.include?(domain) unless uri_scrapped.hostname.nil?
-              if found
+              unless domain.nil?
+                found = uri_scrapped.hostname.include?(domain) unless uri_scrapped.hostname.nil?
+
+                if found
+                  @engines.merge!({:bing => {:url => url_scrapped, :index => index_page + 1}})
+                  break
+                end
+
+              else
                 @engines.merge!({:bing => {:url => url_scrapped, :index => index_page + 1}})
-                break
+
               end
             end
           }
@@ -415,7 +462,7 @@ module Keywords
       end
     end
 
-    def search_google(max_count_page, domain, type, driver)
+    def search_google(max_count_page, domain=nil, type, driver)
       url = "https://www.google.fr/search?q=#{URI.encode(@words)}"
       type_proxy = nil
       proxy = nil
@@ -423,7 +470,7 @@ module Keywords
 
       begin
         raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
+        #raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
         raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "type"}) if type.nil? or type.empty?
         raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
 
@@ -448,21 +495,29 @@ module Keywords
         max_count_page.times { |index_page|
 
           driver.find_elements(:css, element_css).each { |link|
-            begin
-              # soit la landing url est = link
-              # soit le domain du website appartient (sous chaine) d'un link
-              url_scrapped = link["href"]
-              uri_scrapped = URI.parse(url_scrapped)
+            unless domain.nil?
+              begin
 
-            rescue Exception => e
+                # soit la landing url est = link
+                # soit le domain du website appartient (sous chaine) d'un link
+                url_scrapped = link["href"]
+                uri_scrapped = URI.parse(url_scrapped)
+
+              rescue Exception => e
+
+              else
+                found = uri_scrapped.hostname.include?(domain) unless uri_scrapped.hostname.nil?
+                p "page #{index_page + 1} : #{uri_scrapped} : domain found ? #{found}"
+                if found
+                  @engines.merge!({:google => {:url => url_scrapped, :index => index_page + 1}})
+                  break
+                end
+
+              end
 
             else
-              found = uri_scrapped.hostname.include?(domain) unless uri_scrapped.hostname.nil?
-              p "page #{index_page + 1} : #{uri_scrapped} : domain found ? #{found}"
-              if found
-                @engines.merge!({:google => {:url => url_scrapped, :index => index_page + 1}})
-                break
-              end
+              p "page #{index_page + 1} : #{link["href"]}"
+              @engines.merge!({:google => {:url => link["href"], :index => index_page + 1}})
 
             end
           }
@@ -484,7 +539,7 @@ module Keywords
       end
     end
 
-    def search_yahoo(max_count_page, domain, geolocation)
+    def search_yahoo(max_count_page, domain=nil, geolocation)
       url = "https://fr.search.yahoo.com/search?p=#{URI.encode(@words)}"
       type_proxy = nil
       proxy = nil
@@ -493,7 +548,7 @@ module Keywords
       url_scrapped = ""
       begin
         raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
+        #raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
 
         type_proxy, proxy = Keywords::proxy(geolocation) unless geolocation == nil.to_json
 
@@ -523,13 +578,17 @@ module Keywords
               rescue Exception => e
 
               else
+                unless domain.nil?
+                  found = uri_scrapped.hostname.include?(domain)
 
-                found = uri_scrapped.hostname.include?(domain)
+                  if found
+                    @engines.merge!({:yahoo => {:url => url_scrapped, :index => index_page + 1}})
 
-                if found
+                    break
+                  end
+                else
                   @engines.merge!({:yahoo => {:url => url_scrapped, :index => index_page + 1}})
 
-                  break
                 end
               end
             end

@@ -1,9 +1,9 @@
 
 development:
-  :path_firefox: ["d:" , "Mozilla Firefox","35.0", "firefox.exe"]
+  :path_firefox: ["d:" , "Personnel","firefox_51.0.1", "firefox.exe"]
   :path_phantomjs: ["d:" , "personnel","phantomjs" , "phantomjs.exe"]
 #  :ruby_path: ["d:" , "ruby193" , "bin" , "ruby.exe"]
-  :debugging:  false
+  :debugging:  true
 test:
   :path_firefox: ["d:" , "Mozilla Firefox","35.0", "firefox.exe"]
   #:path_phantomjs: ["d:" , "personnel","phantomjs" , "phantomjs.exe"]

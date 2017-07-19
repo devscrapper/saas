@@ -48,6 +48,11 @@ class KeywordsConnection < EM::HttpServer::Server
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if query_values["domain"].nil? or query_values["domain"].empty?
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "type"}) if query_values["type"].nil? or query_values["type"].empty?
 
+        when "search"
+          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "keywords"}) if query_values["keywords"].nil? or query_values["keywords"].empty?
+          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "index"}) if query_values["index"].nil? or query_values["index"].empty?
+          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "count_pages"}) if query_values["count_pages"].nil? or query_values["count_pages"].empty?
+
         else
           raise Error.new(ACTION_UNKNOWN, :values => {:action => query_values["action"]})
 
@@ -105,7 +110,8 @@ class KeywordsConnection < EM::HttpServer::Server
         #"http://#{saas_host}:#{saas_port}/?action=suggest&keywords=#{keyword}")
         #"http://#{saas_host}:#{saas_port}/?action=evaluate&keywords=#{@words}&domain=#{domain}&type=#{sea|link}")
         #http://#{saas_host}:#{saas_port}/?action=online
-        when "suggest", "evaluate", "online"
+        #"http://#{saas_host}:#{saas_port}/?action=search&keywords=#{keywords}&index=#{index}&count_pages=#{count_pages}")
+        when "suggest", "evaluate", "online", "search"
           # autorise une execution concurrente de plusieurs demande
 
           action = proc {
@@ -123,6 +129,11 @@ class KeywordsConnection < EM::HttpServer::Server
 
                 when "online"
                   results = "OK"
+
+                when "search"
+                  results = search(query_values["keywords"],
+                                   query_values["index"],
+                                   query_values["count_pages"], webscraper)
               end
 
             rescue Error => e
@@ -210,6 +221,18 @@ class KeywordsConnection < EM::HttpServer::Server
     {:count => keywords_arr.size}.to_json
   end
 
+  def search(keywords, index, count_pages, webscraper)
+    @logger.an_event.info "search keywords for #{keywords}"
+
+    kw = Keywords::Keyword.new(keywords)
+
+    kw.search(index, count_pages, webscraper, @geolocation.to_json)
+
+    @logger.an_event.info "search keywords #{keywords} is #{kw.engines}"
+
+    kw.engines.to_json
+  end
+
   def suggest(keywords, webscraper)
     @logger.an_event.info "suggest keywords for #{keywords}"
 
@@ -219,7 +242,6 @@ class KeywordsConnection < EM::HttpServer::Server
 
     keywords_arr
   end
-
   def evaluate(keywords, domain, type, webscraper)
     @logger.an_event.info "evaluate keywords #{keywords}"
 
