@@ -123,7 +123,7 @@ begin
 
         logger.a_log.info "factory geolocation"
         geolocation_factory = Geolocations::GeolocationFactory.new(delay_periodic_load_geolocations * 60, logger)
-
+        geolocation = geolocation_factory.get
 
       when "http"
 
@@ -132,14 +132,14 @@ begin
         geo_flow.write(["fr", opts[:proxy_type], opts[:proxy_ip], opts[:proxy_port], opts[:proxy_user], opts[:proxy_pwd]].join(Geolocations::Geolocation::SEPARATOR))
         geo_flow.close
         geolocation_factory = Geolocations::GeolocationFactory.new(delay_periodic_load_geolocations * 60, logger)
-
+        geolocation = geolocation_factory.get
 
     end
     # supervision
     Rufus::Scheduler.start_new.every periodicity_supervision do
       Supervisor.send_online(File.basename(__FILE__, '.rb'))
     end
-    EventMachine.start_server "0.0.0.0", listening_port, KeywordsConnection, geolocation_factory, webscraper_factory, logger
+    EventMachine.start_server "0.0.0.0", listening_port, KeywordsConnection, geolocation, webscraper_factory, logger
 
 
   }

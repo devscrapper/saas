@@ -18,10 +18,10 @@ class KeywordsConnection < EM::HttpServer::Server
        :geolocation
 
 
-  def initialize(geolocation_factory, webscraper_factory, logger)
+  def initialize(geolocation, webscraper_factory, logger)
     @logger = logger
     super
-    @geolocation = geolocation_factory.get
+    @geolocation = geolocation
     @webscraper_factory = webscraper_factory
   end
 
