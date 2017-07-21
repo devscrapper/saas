@@ -101,7 +101,7 @@ module Webscrapers
         cmd += " --cookies-file=#{@cookies_file}"
         cmd += " --remote-debugger-autorun=yes"
         cmd += " --remote-debugger-port=#{@listening_port_phantomjs + 5000}" #TODO confirmer le besoin
-
+        #TODO prendre en charge le proxy socks comme c'est déjà le cas pour firefox.
         unless @geolocation.nil?
           cmd += " --proxy=#{@geolocation.ip}:#{@geolocation.port}"
           cmd += " --proxy-auth=#{@geolocation.user}:#{@geolocation.password}" unless @geolocation.user.empty?
@@ -238,7 +238,7 @@ module Webscrapers
         count -= 1
         logger.an_event.warn "#{count} try to start webdriver "
         sleep 1
-        retry if count > 0   #TODO supprimer le retry,  et le log mais conserver le rescue
+        retry if count > 0 #TODO supprimer le retry,  et le log mais conserver le rescue
         logger.an_event.error "dont start webdriver #{e}"
         logger.an_event.debug e
         @headless.stop
@@ -258,7 +258,7 @@ module Webscrapers
         count -= 1
         logger.an_event.warn "#{count} try to stop webdriver "
         sleep 1
-        retry if count > 0        #TODO supprimer le retry, le raise et le log mais conserver le rescue
+        retry if count > 0 #TODO supprimer le retry, le raise et le log mais conserver le rescue
         #raise Error.new(DRIVER_NOT_STOP, :error => e)
         logger.an_event.error "dont stop webdriver #{e}"
         logger.an_event.debug e

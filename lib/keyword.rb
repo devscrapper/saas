@@ -517,8 +517,11 @@ module Keywords
 
             else
               p "page #{index_page + 1} : #{link["href"]}"
-              @engines.merge!({:google => {:url => link["href"], :index => index_page + 1}})
-
+              if @engines[link["href"]].nil?
+                @engines.merge!({link["href"] => {:engine => :google, :index => index_page + 1}})
+              else
+                @engines[link["href"]].merge!({:engine => :google, :index => index_page + 1})
+              end
             end
           }
 

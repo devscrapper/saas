@@ -54,7 +54,7 @@ Usage:
 
 where [options] are:
   EOS
-  opt :proxy_type, "Type of geolocation proxy use (default : none | factory | http)", :type => :string, :default => "none"
+  opt :proxy_type, "Type of geolocation proxy use (default : none | factory | http | socks)", :type => :string, :default => "none"
   opt :proxy_ip, "@ip of geolocation proxy", :type => :string
   opt :proxy_port, "Port of geolocation proxy", :type => :integer
   opt :proxy_user, "Identified user of geolocation proxy", :type => :string
@@ -63,7 +63,7 @@ where [options] are:
   opt depends(:proxy_user, :proxy_pwd)
 end
 
-Trollop::die :proxy_type, "is not in (none|factory|http)" if !["none", "factory", "http"].include?(opts[:proxy_type])
+Trollop::die :proxy_type, "is not in (none|factory|http|socks)" if !["none", "factory", "http", "socks"].include?(opts[:proxy_type])
 Trollop::die :proxy_ip, "is require with proxy" if ["http"].include?(opts[:proxy_type]) and opts[:proxy_ip].nil?
 Trollop::die :proxy_port, "is require with proxy" if ["http"].include?(opts[:proxy_type]) and opts[:proxy_port].nil?
 
@@ -125,7 +125,7 @@ begin
         geolocation_factory = Geolocations::GeolocationFactory.new(delay_periodic_load_geolocations * 60, logger)
         geolocation = geolocation_factory.get
 
-      when "http"
+      when "http", "socks"
 
         logger.a_log.info "default geolocation : #{opts[:proxy_ip]}:#{opts[:proxy_port]}"
         geo_flow = Flow.new(TMP, "geolocations", :none, $staging, Date.today)

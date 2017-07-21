@@ -68,7 +68,7 @@ module Webscrapers
         take_screenshot
         raise Error.new(NONE_ELEMENT_NOT_FOUND)
       end
-        element
+      element
 
     end
 
@@ -123,10 +123,18 @@ module Webscrapers
         else
           #geolocation
           profile['network.proxy.type'] = 1
-          profile['network.proxy.http'] = @geolocation.ip
-          profile['network.proxy.http_port'] = @geolocation.port.to_i
-          profile['network.proxy.ssl'] = @geolocation.ip
-          profile['network.proxy.ssl_port'] = @geolocation.port.to_i
+          case @geolocation.protocol
+            when "http"
+              profile['network.proxy.http'] = @geolocation.ip
+              profile['network.proxy.http_port'] = @geolocation.port.to_i
+              profile['network.proxy.ssl'] = @geolocation.ip
+              profile['network.proxy.ssl_port'] = @geolocation.port.to_i
+            when "socks"
+              profile['network.proxy.socks'] = @geolocation.ip
+              profile['network.proxy.socks_port'] = @geolocation.port.to_i
+          end
+
+
         end
 
 

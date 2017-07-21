@@ -226,7 +226,7 @@ class KeywordsConnection < EM::HttpServer::Server
 
     kw = Keywords::Keyword.new(keywords)
 
-    kw.search(index, count_pages, webscraper, @geolocation.to_json)
+    kw.search(index.to_i, count_pages.to_i, webscraper, @geolocation.to_json)
 
     @logger.an_event.info "search keywords #{keywords} is #{kw.engines}"
 

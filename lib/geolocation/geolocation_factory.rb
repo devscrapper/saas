@@ -160,6 +160,8 @@ module Geolocations
 
         geo.available?
 
+        #geo.transparent?()
+
       rescue Exception => e
 
         case e.code
