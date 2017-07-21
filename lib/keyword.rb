@@ -352,8 +352,12 @@ module Keywords
                 end
 
               else
-                @engines.merge!({:bing => {:url => url_scrapped, :index => index_page + 1}})
-
+                #@engines.merge!({:bing => {:url => url_scrapped, :index => index_page + 1}})
+                if @engines[url_scrapped].nil?
+                  @engines.merge!({url_scrapped => {:engine => :bing, :index => index_page + 1}})
+                else
+                  @engines[url_scrapped].merge!({:engine => :bing, :index => index_page + 1})
+                end
               end
             end
           }
@@ -590,8 +594,12 @@ module Keywords
                     break
                   end
                 else
-                  @engines.merge!({:yahoo => {:url => url_scrapped, :index => index_page + 1}})
-
+                  #@engines.merge!({:yahoo => {:url => url_scrapped, :index => index_page + 1}})
+                  if @engines[url_scrapped].nil?
+                    @engines.merge!({url_scrapped => {:engine => :yahoo, :index => index_page + 1}})
+                  else
+                    @engines[url_scrapped].merge!({:engine => :yahoo, :index => index_page + 1})
+                  end
                 end
               end
             end
