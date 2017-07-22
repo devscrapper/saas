@@ -124,6 +124,7 @@
 1507: "webdriver suggestion by [engine] failed"
 1508: "keyword [keyword] not found with [engine]"
 1509: "semrush subscription is over"
+1510: "keyword [keyword] not search"
 1600: "argument [variable] not define"
 1601: "referral not set geolocation [geo]"
 1602: "url [url] backlink malformed"

@@ -27,7 +27,7 @@ module Keywords
   WEBDRIVER_SUGGESTION_FAILED = 1507
   KEYWORD_NOT_FOUND = 1508
   SEMRUSH_SUBSCRIPTION_IS_OVER = 1509
-
+  KEYWORD_NOT_SEARCHED = 1510
   EOFLINE = "\n"
   SEPARATOR = ";"
   INDEX_MAX = 3
@@ -104,7 +104,7 @@ module Keywords
 
         end
       rescue Exception => e
-        raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:variable => "domain"}, :error => e)
+        raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:keyword => @words}, :error => e)
 
       end
     end
@@ -116,7 +116,7 @@ module Keywords
         search_google(INDEX_MAX, domain, :sea, driver)
 
       rescue Exception => e
-        raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:variable => "domain"}, :error => e)
+        raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:keyword => @words}, :error => e)
 
       end
     end
@@ -177,20 +177,23 @@ module Keywords
     # si opts = nil => pas de proxy pour requete http
     def search(index, count_pages, driver, geolocation=nil)
       begin
-        google = Thread.new { Thread.current["name"] = :google; search_google(count_pages, nil, :link, driver) }
-        yahoo = Thread.new { Thread.current["name"] = :yahoo; search_yahoo(count_pages, nil, geolocation) }
-        bing = Thread.new { Thread.current["name"] = :bing; search_bing(count_pages, nil, geolocation) }
+        #     google = Thread.new { Thread.current["name"] = :google; search_google(count_pages, nil, :link, driver) }
+       # yahoo = Thread.new { Thread.current["name"] = :yahoo; search_yahoo(count_pages, nil, geolocation) }
+             bing = Thread.new { Thread.current["name"] = :bing; search_bing(count_pages, nil, geolocation) }
 
         #google.abort_on_exception = true
         #yahoo.abort_on_exception = true
         #bing.abort_on_exception = true
 
-        #ThreadsWait.all_waits(google) do |t|
-        ThreadsWait.all_waits(google, yahoo, bing) do |t|
+        # ThreadsWait.all_waits(google) do |t|
+           ThreadsWait.all_waits(bing) do |t|
+        #ThreadsWait.all_waits(yahoo) do |t|
+
+          # ThreadsWait.all_waits(google, yahoo, bing) do |t|
 
         end
       rescue Exception => e
-        raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:variable => "domain"}, :error => e)
+        raise Error.new(KEYWORD_NOT_SEARCHED, :values => {:keyword => @words}, :error => e)
 
       end
     end
@@ -323,14 +326,23 @@ module Keywords
         max_count_page.times { |index_page|
           sleep [*5..20].sample
 
+          #pour google,on est contraint d'utiliser un browser pour scraper. Pour tester en phase de dev au boulot, lenavgateur
+          # doit passer par un proxy socks.
+          # Pour les requetes http directe,pas de besoin de porxy socks.
+          # donc comme on ne peut parametrer qu'un proxy à la fois :
+          # soit on teste google en executant keyword_saas.rb avec un proxy socks
+          # soit on teste yaho,bing en executant keyword_saas.rb avec un proxy http
+          # en pahse de production/test (pas au boulot) :
+          # soit on interroge  google,yaho,bing en executant keyword_saas.rb avec un proxy http
+          # soit on interroge google,yaho,bing en executant keyword_saas.rb sans proxy
           page = open(url,
                       "User-Agent" => UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string, # n'est pas obligatoire
                       type_proxy => proxy,
-                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if !type_proxy.nil? and !proxy.nil?
+                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if $staging != "development" and !type_proxy.nil? and !proxy.nil?
 
           page = open(url,
                       "User-Agent" => UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string, # n'est pas obligatoire
-                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if type_proxy.nil? and proxy.nil?
+                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if $staging == "development" or (type_proxy.nil? and proxy.nil?)
 
 
           Nokogiri::HTML(page).css('h2 > a').each { |link|
@@ -343,6 +355,7 @@ module Keywords
             rescue Exception => e
 
             else
+              #utilisé par evaluate
               unless domain.nil?
                 found = uri_scrapped.hostname.include?(domain) unless uri_scrapped.hostname.nil?
 
@@ -352,11 +365,11 @@ module Keywords
                 end
 
               else
-                #@engines.merge!({:bing => {:url => url_scrapped, :index => index_page + 1}})
+                #utilisé par search
                 if @engines[url_scrapped].nil?
-                  @engines.merge!({url_scrapped => {:engine => :bing, :index => index_page + 1}})
+                  @engines.merge!({url_scrapped => [{:engine => :bing, :index => index_page + 1}]})
                 else
-                  @engines[url_scrapped].merge!({:engine => :bing, :index => index_page + 1})
+                  @engines[url_scrapped] << {:engine => :bing, :index => index_page + 1}
                 end
               end
             end
@@ -562,15 +575,24 @@ module Keywords
         max_count_page.times { |index_page|
           sleep [*5..20].sample
 
+          #pour google,on est contraint d'utiliser un browser pour scraper. Pour tester en phase de dev au boulot, lenavgateur
+          # doit passer par un proxy socks.
+          # Pour les requetes http directe,pas de besoin de porxy socks.
+          # donc comme on ne peut parametrer qu'un proxy à la fois :
+          # soit on teste google en executant keyword_saas.rb avec un proxy socks
+          # soit on teste yaho,bing en executant keyword_saas.rb avec un proxy http
+          # en pahse de production/test (pas au boulot) :
+          # soit on interroge  google,yaho,bing en executant keyword_saas.rb avec un proxy http
+          # soit on interroge google,yaho,bing en executant keyword_saas.rb sans proxy
           page = open(url,
                       "User-Agent" => "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:33.0) Gecko/20100101 Firefox/33.0",
                       type_proxy => proxy,
-                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if !type_proxy.nil? and !proxy.nil?
+                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if $staging != "development" and !type_proxy.nil? and !proxy.nil?
           page = open(url,
                       "User-Agent" => UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string,
-                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if type_proxy.nil? and proxy.nil?
+                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if $staging == "development" or (type_proxy.nil? and proxy.nil?)
 
-          Nokogiri::HTML(page).css('h3 > a.yschttl.spt').each { |link|
+          Nokogiri::HTML(page).css('h3 > a.td-u').each { |link|
             # soit la landing url est = link
             # soit le domain du website appartient (sous chaine) d'un link
             begin
