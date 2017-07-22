@@ -50,8 +50,8 @@ class KeywordsConnection < EM::HttpServer::Server
 
         when "search"
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "keywords"}) if query_values["keywords"].nil? or query_values["keywords"].empty?
-          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "index"}) if query_values["index"].nil? or query_values["index"].empty?
-          raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "count_pages"}) if query_values["count_pages"].nil? or query_values["count_pages"].empty?
+          query_values["index"] = 1 if query_values["index"].nil? or query_values["index"].empty?
+          query_values["count_pages"] = 1 if query_values["count_pages"].nil? or query_values["count_pages"].empty?
 
         else
           raise Error.new(ACTION_UNKNOWN, :values => {:action => query_values["action"]})
