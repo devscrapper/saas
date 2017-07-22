@@ -366,6 +366,7 @@ module Keywords
 
               else
                 #utilisé par search
+                p "bing => page #{index_page + 1} : #{url_scrapped}"
                 if @engines[url_scrapped].nil?
                   @engines.merge!({url_scrapped => [{:engine => :bing, :index => index_page + 1}]})
                 else
@@ -533,11 +534,11 @@ module Keywords
               end
 
             else
-              p "page #{index_page + 1} : #{link["href"]}"
+              p "google => page #{index_page + 1} : #{link["href"]}"
               if @engines[link["href"]].nil?
-                @engines.merge!({link["href"] => {:engine => :google, :index => index_page + 1}})
+                @engines.merge!({link["href"] => [{:engine => :google, :index => index_page + 1}]})
               else
-                @engines[link["href"]].merge!({:engine => :google, :index => index_page + 1})
+                @engines[link["href"] ] << {:engine => :google, :index => index_page + 1}
               end
             end
           }
@@ -607,6 +608,7 @@ module Keywords
               rescue Exception => e
 
               else
+                #utilisé par evaluate
                 unless domain.nil?
                   found = uri_scrapped.hostname.include?(domain)
 
@@ -616,11 +618,12 @@ module Keywords
                     break
                   end
                 else
-                  #@engines.merge!({:yahoo => {:url => url_scrapped, :index => index_page + 1}})
+                  #utilisé par search
+                  p "yahoo => page #{index_page + 1} : #{url_scrapped}"
                   if @engines[url_scrapped].nil?
-                    @engines.merge!({url_scrapped => {:engine => :yahoo, :index => index_page + 1}})
+                    @engines.merge!({url_scrapped => [{:engine => :yahoo, :index => index_page + 1}]})
                   else
-                    @engines[url_scrapped].merge!({:engine => :yahoo, :index => index_page + 1})
+                    @engines[url_scrapped] << {:engine => :yahoo, :index => index_page + 1}
                   end
                 end
               end
