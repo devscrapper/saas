@@ -177,19 +177,19 @@ module Keywords
     # si opts = nil => pas de proxy pour requete http
     def search(index, count_pages, driver, geolocation=nil)
       begin
-        #     google = Thread.new { Thread.current["name"] = :google; search_google(count_pages, nil, :link, driver) }
-       # yahoo = Thread.new { Thread.current["name"] = :yahoo; search_yahoo(count_pages, nil, geolocation) }
-             bing = Thread.new { Thread.current["name"] = :bing; search_bing(count_pages, nil, geolocation) }
+        google = Thread.new { Thread.current["name"] = :google; search_google(count_pages, nil, :link, driver) }
+        yahoo = Thread.new { Thread.current["name"] = :yahoo; search_yahoo(count_pages, nil, geolocation) }
+        bing = Thread.new { Thread.current["name"] = :bing; search_bing(count_pages, nil, geolocation) }
 
         #google.abort_on_exception = true
         #yahoo.abort_on_exception = true
         #bing.abort_on_exception = true
 
-        # ThreadsWait.all_waits(google) do |t|
-           ThreadsWait.all_waits(bing) do |t|
+        #ThreadsWait.all_waits(google) do |t|
+        #   ThreadsWait.all_waits(bing) do |t|
         #ThreadsWait.all_waits(yahoo) do |t|
 
-          # ThreadsWait.all_waits(google, yahoo, bing) do |t|
+        ThreadsWait.all_waits(google, yahoo, bing) do |t|
 
         end
       rescue Exception => e
