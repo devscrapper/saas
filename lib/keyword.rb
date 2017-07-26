@@ -188,7 +188,7 @@ module Keywords
         #ThreadsWait.all_waits(google) do |t|
         #   ThreadsWait.all_waits(bing) do |t|
         #ThreadsWait.all_waits(yahoo) do |t|
-
+        # ThreadsWait.all_waits(yahoo, bing) do |t|
         ThreadsWait.all_waits(google, yahoo, bing) do |t|
 
         end
@@ -350,6 +350,7 @@ module Keywords
 
             begin
               url_scrapped = link.attributes["href"].value
+              title = link.text
               uri_scrapped = URI.parse(url_scrapped)
 
             rescue Exception => e
@@ -366,11 +367,11 @@ module Keywords
 
               else
                 #utilisé par search
-                p "bing => page #{index_page + 1} : #{url_scrapped}"
+                p "bing => page #{index_page + 1} : #{title}, #{url_scrapped}"
                 if @engines[url_scrapped].nil?
-                  @engines.merge!({url_scrapped => [{:engine => :bing, :index => index_page + 1}]})
+                  @engines.merge!({url_scrapped => [{:engine => :bing, :index => index_page + 1, :title => title}]})
                 else
-                  @engines[url_scrapped] << {:engine => :bing, :index => index_page + 1}
+                  @engines[url_scrapped] << {:engine => :bing, :index => index_page + 1, :title => title}
                 end
               end
             end
@@ -513,6 +514,9 @@ module Keywords
         max_count_page.times { |index_page|
 
           driver.find_elements(:css, element_css).each { |link|
+
+            title = link.text
+
             unless domain.nil?
               begin
 
@@ -533,14 +537,17 @@ module Keywords
 
               end
 
-            else
-              p "google => page #{index_page + 1} : #{link["href"]}"
+            else #unless domain.nil?
+
+              p "google => page #{index_page + 1} : #{title}, #{link["href"]}"
               if @engines[link["href"]].nil?
-                @engines.merge!({link["href"] => [{:engine => :google, :index => index_page + 1}]})
+                @engines.merge!({link["href"] => [{:engine => :google, :index => index_page + 1, :title => title}]})
+
               else
-                @engines[link["href"] ] << {:engine => :google, :index => index_page + 1}
+                @engines[link["href"]] << {:engine => :google, :index => index_page + 1, :title => title}
+
               end
-            end
+            end  #unless domain.nil?
           }
 
           nxt = driver.find_element(:css, 'a#pnnext.pn')
@@ -598,6 +605,7 @@ module Keywords
             # soit le domain du website appartient (sous chaine) d'un link
             begin
               uri = URI.parse(link.attributes["href"].value)
+              title = link.title
             rescue Exception => e
             else
               begin
@@ -619,11 +627,11 @@ module Keywords
                   end
                 else
                   #utilisé par search
-                  p "yahoo => page #{index_page + 1} : #{url_scrapped}"
+                  p "yahoo => page #{index_page + 1} : #{title}, #{url_scrapped}"
                   if @engines[url_scrapped].nil?
-                    @engines.merge!({url_scrapped => [{:engine => :yahoo, :index => index_page + 1}]})
+                    @engines.merge!({url_scrapped => [{:engine => :yahoo, :index => index_page + 1, :title => title}]})
                   else
-                    @engines[url_scrapped] << {:engine => :yahoo, :index => index_page + 1}
+                    @engines[url_scrapped] << {:engine => :yahoo, :index => index_page + 1, :title => title}
                   end
                 end
               end
