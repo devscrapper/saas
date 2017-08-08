@@ -103,7 +103,7 @@ logger.a_log.info "staging : #{$staging}"
 #--------------------------------------------------------------------------------------------------------------------
 
 
-webscraper_factory = Webscrapers::WebscraperFactory.new(opts[:webdriver_with_gui], logger)
+webscraper_factory = nil
 begin
   EventMachine.run {
     Signal.trap("INT") { EventMachine.stop }
@@ -139,18 +139,22 @@ begin
     Rufus::Scheduler.start_new.every periodicity_supervision do
       Supervisor.send_online(File.basename(__FILE__, '.rb'))
     end
-    EventMachine.start_server "0.0.0.0", listening_port, KeywordsConnection, geolocation, webscraper_factory, logger
 
+    webscraper_factory = Webscrapers::WebscraperFactory.new(opts[:webdriver_with_gui], 3, geolocation, logger)
+
+    EventMachine.start_server "0.0.0.0", listening_port, KeywordsConnection, geolocation, webscraper_factory, logger
 
   }
 rescue Exception => e
+  webscraper_factory.delete_all unless webscraper_factory.nil?
+
   logger.a_log.fatal e
   logger.a_log.warn "keywords saas restart"
   retry
   logger.a_log.fatal "keywords saas stops abruptly : #{e.message}"
 
 end
-logger.a_log.info "keywords saas sopped"
+logger.a_log.info "keywords saas stopped"
 
 
 

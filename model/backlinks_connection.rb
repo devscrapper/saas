@@ -72,7 +72,7 @@ class BacklinksConnection < EM::HttpServer::Server
         #http://#{saas_host}:#{saas_port}/?action=online
         case query_values["action"]
           when "scrape", "count"
-            webscraper = @webscraper_factory.book(@geolocation)
+            webscraper = @webscraper_factory.book(1,@geolocation)[0]
 
             results = scrape(query_values["hostname"], webscraper) if query_values["action"] == "scrape"
             results = count(query_values["hostname"], webscraper) if query_values["action"] == "count"

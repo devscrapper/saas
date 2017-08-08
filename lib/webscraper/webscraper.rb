@@ -140,7 +140,7 @@ module Webscrapers
 
         Selenium::WebDriver::Firefox.path = @path_firefox
         client = Selenium::WebDriver::Remote::Http::Default.new
-        client.timeout = 120 # seconds
+        client.read_timeout = 120 # seconds
 
         @driver = Selenium::WebDriver.for :firefox,
                                           :profile => profile,

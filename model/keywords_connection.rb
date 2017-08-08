@@ -50,8 +50,20 @@ class KeywordsConnection < EM::HttpServer::Server
 
         when "search"
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "keywords"}) if query_values["keywords"].nil? or query_values["keywords"].empty?
-          query_values["index"] = 1 if query_values["index"].nil? or query_values["index"].empty?
-          query_values["count_pages"] = 1 if query_values["count_pages"].nil? or query_values["count_pages"].empty?
+          if query_values["engines"].nil? or query_values["engines"].empty?
+            query_values["engines"] = [:google, :yahoo, :bing]
+
+          else
+            query_values["engines"] = query_values["engines"].split("|").map! { |e| e.to_sym }
+
+          end
+          if query_values["count_pages"].nil? or query_values["count_pages"].empty?
+            query_values["count_pages"] = 1
+
+          else
+            query_values["count_pages"] = query_values["count_pages"].to_i
+
+          end
 
         else
           raise Error.new(ACTION_UNKNOWN, :values => {:action => query_values["action"]})
@@ -83,7 +95,7 @@ class KeywordsConnection < EM::HttpServer::Server
           # une seule instance de scrape à la fois car un seul id utilisateur pour semrush qui interdit le scrape concurrent
           begin
 
-            webscraper = @webscraper_factory.book(@geolocation)
+            webscraper = @webscraper_factory.book(1, @geolocation)[0]
 
             results = scrape(query_values["hostname"], webscraper) if query_values["action"] == "scrape"
             results = count(query_values["hostname"], webscraper) if query_values["action"] == "count"
@@ -107,33 +119,42 @@ class KeywordsConnection < EM::HttpServer::Server
             @webscraper_factory.free(webscraper) unless webscraper.nil?
 
           end
-        #"http://#{saas_host}:#{saas_port}/?action=suggest&keywords=#{keyword}")
-        #"http://#{saas_host}:#{saas_port}/?action=evaluate&keywords=#{@words}&domain=#{domain}&type=#{sea|link}")
-        #http://#{saas_host}:#{saas_port}/?action=online
-        #"http://#{saas_host}:#{saas_port}/?action=search&keywords=#{keywords}&index=#{index}&count_pages=#{count_pages}")
+        # http://#{saas_host}:#{saas_port}/?action=suggest&keywords=#{keyword}
+        # http://#{saas_host}:#{saas_port}/?action=evaluate&keywords=#{@words}&domain=#{domain}&type=#{sea|link}
+        # http://#{saas_host}:#{saas_port}/?action=online
+        # http://#{saas_host}:#{saas_port}/?action=search&keywords=#{keywords}&engines=#{engines}&count_pages=#{count_pages}
         when "suggest", "evaluate", "online", "search"
           # autorise une execution concurrente de plusieurs demande
-
           action = proc {
             begin
               # perform a long-running operation here, such as a database query.
 
-              webscraper = @webscraper_factory.book(@geolocation)
 
               case query_values["action"]
                 when "suggest"
+                  webscraper = @webscraper_factory.book(1, @geolocation)[0]
                   results = suggest(query_values["keywords"], webscraper)
 
                 when "evaluate"
-                  results = evaluate(query_values["keywords"], query_values["domain"], query_values["type"], webscraper)
+                  case query_values["type"]
+                    when "link"
+                      webscrapers = @webscraper_factory.book(3, @geolocation)
+
+                    when "sea"
+                      webscraper = @webscraper_factory.book(1, @geolocation)[0]
+
+                  end
+
+                  results = evaluate(query_values["keywords"], query_values["domain"], query_values["type"], webscrapers || webscraper)
 
                 when "online"
                   results = "OK"
 
                 when "search"
-                  results = search(query_values["keywords"],
-                                   query_values["index"],
-                                   query_values["count_pages"], webscraper)
+                  webscrapers = @webscraper_factory.book(query_values["engines"].count, @geolocation)
+                  results = search(query_values["engines"],
+                                   query_values["keywords"],
+                                   query_values["count_pages"], webscrapers)
               end
 
             rescue Error => e
@@ -147,6 +168,7 @@ class KeywordsConnection < EM::HttpServer::Server
 
             ensure
               @webscraper_factory.free(webscraper) unless webscraper.nil?
+              webscrapers.each { |webscraper| @webscraper_factory.free(webscraper) } unless webscrapers.nil?
 
             end
           }
@@ -221,13 +243,21 @@ class KeywordsConnection < EM::HttpServer::Server
     {:count => keywords_arr.size}.to_json
   end
 
-  def search(keywords, index, count_pages, webscraper)
+  def search(engines, keywords, count_pages, webscrapers)
     @logger.an_event.info "search keywords for #{keywords}"
+
+    s = Time.now
 
     kw = Keywords::Keyword.new(keywords)
 
-    kw.search(index.to_i, count_pages.to_i, webscraper, @geolocation.to_json)
 
+    kw.search(engines, count_pages, webscrapers)
+
+    e = Time.now
+
+    delay = e - s
+
+    p "delay search : #{delay}"
     @logger.an_event.info "search keywords #{keywords} is #{kw.engines}"
 
     kw.engines.to_json
@@ -242,17 +272,18 @@ class KeywordsConnection < EM::HttpServer::Server
 
     keywords_arr
   end
-  def evaluate(keywords, domain, type, webscraper)
+
+  def evaluate(keywords, domain, type, webscrapers)
     @logger.an_event.info "evaluate keywords #{keywords}"
 
     kw = Keywords::Keyword.new(keywords)
 
     case type
       when "link"
-        kw.evaluate_link(domain, webscraper, @geolocation.to_json)
+        kw.evaluate_link(domain, webscrapers)
 
       when "sea"
-        kw.evaluate_sea(domain, webscraper, @geolocation.to_json)
+        kw.evaluate_sea(domain, webscrapers)
 
     end
 
