@@ -87,13 +87,11 @@ module Keywords
     # si opts is_a(Hash) alors => proxy, les rquete http passe par un proxy
     # si opts n'est pas un hash => driver
     # si opts = nil => pas de proxy pour requete http
-    def evaluate_link(domain, driver, geolocation=nil)
-      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
-
+    def evaluate_link(domain, driver)
       begin
-        google = Thread.new { Thread.current["name"] = :google; search_google(INDEX_MAX, domain, :link, driver) }
-        yahoo = Thread.new { Thread.current["name"] = :yahoo; search_yahoo(INDEX_MAX, domain, geolocation) }
-        bing = Thread.new { Thread.current["name"] = :bing; search_bing(INDEX_MAX, domain, geolocation) }
+        google = Thread.new { Thread.current["name"] = :google; evaluate_google(INDEX_MAX, domain, :link, driver[0]) }
+        yahoo = Thread.new { Thread.current["name"] = :yahoo; evaluate_yahoo(INDEX_MAX, domain, driver[1]) }
+        bing = Thread.new { Thread.current["name"] = :bing; evaluate_bing(INDEX_MAX, domain, driver[2]) }
 
         #google.abort_on_exception = true
         #yahoo.abort_on_exception = true
@@ -109,11 +107,9 @@ module Keywords
       end
     end
 
-    def evaluate_sea(domain, driver, geolocation=nil)
-      raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
-
+    def evaluate_sea(domain, driver)
       begin
-        search_google(INDEX_MAX, domain, :sea, driver)
+        evaluate_google(INDEX_MAX, domain, :sea, driver)
 
       rescue Exception => e
         raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:keyword => @words}, :error => e)
@@ -138,9 +134,9 @@ module Keywords
         #query http vers keywords saas
         href = "http://#{saas_host}:#{saas_port}/?action=evaluate&keywords=#{@words}&domain=#{domain}"
 
-        keywords_io = open(href,
-                           "r:utf-8",
-                           {:read_timeout => time_out})
+        results_io = open(href,
+                          "r:utf-8",
+                          {:read_timeout => time_out})
 
       rescue Exception => e
         sleep 5
@@ -149,7 +145,7 @@ module Keywords
         raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:keyword => @words}, :error => e)
 
       else
-        @engines = JSON.parse(keywords_io.string)
+        @engines = JSON.parse(results_io.string)
 
       end
 
@@ -175,21 +171,42 @@ module Keywords
     # si opts is_a(Hash) alors => proxy, les rquete http passe par un proxy
     # si opts n'est pas un hash => driver
     # si opts = nil => pas de proxy pour requete http
-    def search(index, count_pages, driver, geolocation=nil)
+    def search(engines, count_pages, drivers)
       begin
-        google = Thread.new { Thread.current["name"] = :google; search_google(count_pages, nil, :link, driver) }
-        yahoo = Thread.new { Thread.current["name"] = :yahoo; search_yahoo(count_pages, nil, geolocation) }
-        bing = Thread.new { Thread.current["name"] = :bing; search_bing(count_pages, nil, geolocation) }
+        th = []
 
-        #google.abort_on_exception = true
-        #yahoo.abort_on_exception = true
-        #bing.abort_on_exception = true
+        if engines.include?(:google)
+          google = Thread.new {
+            s = Time.now
+            Thread.current["name"] = :google; search_google(count_pages, drivers[0])
+            e = Time.now
+            delay = e - s
+            p "delay google #{delay}"
+          }
+          th << google
+        end
+        if engines.include?(:yahoo)
+          yahoo = Thread.new {
+            s = Time.now
+            Thread.current["name"] = :yahoo; search_yahoo(count_pages, drivers[1])
+            e = Time.now
+            delay = e - s
+            p "delay yahoo #{delay}"
+          }
+          th << yahoo
+        end
+        if engines.include?(:bing)
+          bing = Thread.new {
+            s = Time.now
+            Thread.current["name"] = :bing; search_bing(count_pages, drivers[2])
+            e = Time.now
+            delay = e - s
+            p "delay bing #{delay}"
+          }
+          th << bing
+        end
 
-        #ThreadsWait.all_waits(google) do |t|
-        #   ThreadsWait.all_waits(bing) do |t|
-        #ThreadsWait.all_waits(yahoo) do |t|
-        # ThreadsWait.all_waits(yahoo, bing) do |t|
-        ThreadsWait.all_waits(google, yahoo, bing) do |t|
+        ThreadsWait.all_waits(th) do |t|
 
         end
       rescue Exception => e
@@ -197,6 +214,43 @@ module Keywords
 
       end
     end
+
+    def search_as_saas(engines=[:google, :yahoo, :bing], index=1, count_pages=1)
+      # engines est un array [:google, :yahoo, :bing]
+      try_count = 3
+
+      begin
+        parameters = Parameter.new(__FILE__)
+        saas_host = parameters.saas_host.to_s
+        saas_port = parameters.saas_port.to_s
+        time_out = parameters.time_out_saas_search.to_i
+
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_host"}) if saas_host.nil? or saas_host.empty?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "saas_port"}) if saas_port.nil? or saas_port.empty?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "engines"}) if engines.nil? or engines.empty?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "time_out_saas_search"}) if time_out.nil? or time_out == 0
+
+
+        #query http vers keywords saas
+        href = "http://#{saas_host}:#{saas_port}/?action=search&keywords=#{@words}&engines=#{engines}&index=#{index}&count_pages=#{count_pages}"
+
+        results_io = open(href,
+                          "r:utf-8",
+                          {:read_timeout => time_out})
+
+      rescue Exception => e
+        sleep 5
+        try_count -= 1
+        retry if try_count > 0
+        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words}, :error => e)
+
+      else
+        @engines = JSON.parse(results_io.string)
+
+      end
+
+    end
+
 
     #----------------------------------------------------------------------------------------------------------------
     # google_suggest(hostname, driver)
@@ -310,251 +364,56 @@ module Keywords
     end
 
     private
-
-    def search_bing(max_count_page, domain=nil, geolocation)
-      url = "http://www.bing.com/search?q=#{URI.encode(@words)}"
-      type_proxy = nil
-      proxy = nil
+    def evaluate_webdriver(max_count_page, engine, css_elements, domain, driver)
       found = false
 
       begin
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        #raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "css_elements"}) if css_elements.nil? or css_elements.empty?
 
-        type_proxy, proxy = Keywords::proxy(geolocation) unless geolocation == nil.to_json
+        result_css = css_elements[:result]
+        engine_url = css_elements[:engine_url]
+        keywords_field_css = css_elements[:keywords_field_css]
+        next_css = css_elements[:next_css]
 
-        max_count_page.times { |index_page|
-          sleep [*5..20].sample
+        driver.navigate_to engine_url
+        element = driver.find_element(:name, keywords_field_css)
+        element.clear
+        element.send_keys "#{@words}"
+        element.submit
 
-          #pour google,on est contraint d'utiliser un browser pour scraper. Pour tester en phase de dev au boulot, lenavgateur
-          # doit passer par un proxy socks.
-          # Pour les requetes http directe,pas de besoin de porxy socks.
-          # donc comme on ne peut parametrer qu'un proxy à la fois :
-          # soit on teste google en executant keyword_saas.rb avec un proxy socks
-          # soit on teste yaho,bing en executant keyword_saas.rb avec un proxy http
-          # en pahse de production/test (pas au boulot) :
-          # soit on interroge  google,yaho,bing en executant keyword_saas.rb avec un proxy http
-          # soit on interroge google,yaho,bing en executant keyword_saas.rb sans proxy
-          page = open(url,
-                      "User-Agent" => UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string, # n'est pas obligatoire
-                      type_proxy => proxy,
-                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if $staging != "development" and !type_proxy.nil? and !proxy.nil?
-
-          page = open(url,
-                      "User-Agent" => UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string, # n'est pas obligatoire
-                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if $staging == "development" or (type_proxy.nil? and proxy.nil?)
-
-
-          Nokogiri::HTML(page).css('h2 > a').each { |link|
-
-
-            begin
-              url_scrapped = link.attributes["href"].value
-              title = link.text
-              uri_scrapped = URI.parse(url_scrapped)
-
-            rescue Exception => e
-
-            else
-              #utilisé par evaluate
-              unless domain.nil?
-                found = uri_scrapped.hostname.include?(domain) unless uri_scrapped.hostname.nil?
-
-                if found
-                  @engines.merge!({:bing => {:url => url_scrapped, :index => index_page + 1}})
-                  break
-                end
-
-              else
-                #utilisé par search
-                p "bing => page #{index_page + 1} : #{title}, #{url_scrapped}"
-                if @engines[url_scrapped].nil?
-                  @engines.merge!({url_scrapped => [{:engine => :bing, :index => index_page + 1, :title => title}]})
-                else
-                  @engines[url_scrapped] << {:engine => :bing, :index => index_page + 1, :title => title}
-                end
-              end
-            end
-          }
-          #recherche du lien "Suivant"  pour passer à la page suivante
-          nxt = Nokogiri::HTML(page).css('a.sb_pagN').first
-
-          # passe à la page suivante
-          if !found and index_page < max_count_page - 1 and !nxt.nil?
-            url = "http://www.bing.com#{nxt.attributes["href"].value}"
-
-          else
-            #on a terminé :
-            # soit parce qu'on a trouvé l'url ou une url contenant le domain du website
-            # soit pas d'url repondant au critere et le nombre de page max de recherche est dépassé
-            #si l'url ou une url contenant le domain du website a été trouvée on arrete de chercher
-            break
-
-          end
-        }
       rescue Exception => e
-        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "bing"}, :error => e)
+        raise e
 
       else
-      ensure
-
-      end
-    end
-
-    def search_google_old(max_count_page, domain, geolocation)
-      url = "https://www.google.fr/search?q=#{URI.encode(@words)}"
-      type_proxy = nil
-      proxy = nil
-      found = false
-
-      begin
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
-
-        type_proxy, proxy = Keywords::proxy(geolocation) unless geolocation == nil.to_json
-
-
-        sleep [*15..20].sample
-
-        cookie = (page = open("https://www.google.fr/",
-                              "User-Agent" => UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string, # n'est pas obligatoire
-                              type_proxy => proxy,
-                              :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE)).meta["set-cookie"] if !type_proxy.nil? and !proxy.nil?
-        cookie = (page = open("https://www.google.fr/",
-                              "User-Agent" => "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:33.0) Gecko/20100101 Firefox/33.0",
-                              :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE)).meta["set-cookie"] if type_proxy.nil? and proxy.nil?
-
         max_count_page.times { |index_page|
 
-          page = open(url,
-                      "Cookie" => cookie,
-                      "User-Agent" => UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string, # n'est pas obligatoire
-                      type_proxy => proxy,
-                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if !type_proxy.nil? and !proxy.nil?
+          driver.find_elements(:css, result_css).each { |link|
+            title = link.text
 
-          page = open(url,
-                      "Cookie" => cookie,
-                      "User-Agent" => UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string, # n'est pas obligatoire
-                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if type_proxy.nil? and proxy.nil?
-
-
-          Nokogiri::HTML(page).css('h3.r > a').each { |link|
             begin
               # soit la landing url est = link
               # soit le domain du website appartient (sous chaine) d'un link
-              url_scrapped = link.attributes["href"].value
-
-
+              url_scrapped = link["href"]
               uri_scrapped = URI.parse(url_scrapped)
 
             rescue Exception => e
 
             else
               found = uri_scrapped.hostname.include?(domain) unless uri_scrapped.hostname.nil?
-
+              p "#{engine} => page #{index_page + 1} : #{title}, #{uri_scrapped}, domain found ? #{found}"
               if found
-                @engines.merge!({:google => {:url => url_scrapped, :index => index_page + 1}})
+                @engines.merge!({engine => {:url => url_scrapped, :index => index_page + 1}})
                 break
               end
 
             end
           }
 
-          nxt = Nokogiri::HTML(page).css('a#pnnext.pn').first
+          nxt = driver.find_element(:css, next_css)
 
           if !found and index_page < max_count_page - 1 and !nxt.nil?
-            url = "https://www.google.fr#{nxt.attributes["href"].value}"
-
-          else
-            break
-
-          end
-
-        }
-      rescue Exception => e
-        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "google"}, :error => e)
-
-      else
-
-      ensure
-
-      end
-    end
-
-    def search_google(max_count_page, domain=nil, type, driver)
-      url = "https://www.google.fr/search?q=#{URI.encode(@words)}"
-      type_proxy = nil
-      proxy = nil
-      found = false
-
-      begin
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        #raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "type"}) if type.nil? or type.empty?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
-
-        case type
-          when :link # recherche les link
-            element_css = 'h3.r > a'
-          when :sea # recherche les Adsense
-            element_css = 'ol > li.ads-ad > h3 > a:nth-child(2)'
-        end
-
-        driver.navigate_to "https://www.google.fr/"
-        element = driver.find_element(:name, 'q')
-        element.clear
-        element.send_keys "#{@words}"
-        element.submit
-
-      rescue Exception => e
-        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "google"}, :error => e)
-
-      else
-
-        max_count_page.times { |index_page|
-
-          driver.find_elements(:css, element_css).each { |link|
-
-            title = link.text
-
-            unless domain.nil?
-              begin
-
-                # soit la landing url est = link
-                # soit le domain du website appartient (sous chaine) d'un link
-                url_scrapped = link["href"]
-                uri_scrapped = URI.parse(url_scrapped)
-
-              rescue Exception => e
-
-              else
-                found = uri_scrapped.hostname.include?(domain) unless uri_scrapped.hostname.nil?
-                p "page #{index_page + 1} : #{uri_scrapped} : domain found ? #{found}"
-                if found
-                  @engines.merge!({:google => {:url => url_scrapped, :index => index_page + 1}})
-                  break
-                end
-
-              end
-
-            else #unless domain.nil?
-
-              p "google => page #{index_page + 1} : #{title}, #{link["href"]}"
-              if @engines[link["href"]].nil?
-                @engines.merge!({link["href"] => [{:engine => :google, :index => index_page + 1, :title => title}]})
-
-              else
-                @engines[link["href"]] << {:engine => :google, :index => index_page + 1, :title => title}
-
-              end
-            end  #unless domain.nil?
-          }
-
-          nxt = driver.find_element(:css, 'a#pnnext.pn')
-
-          if !found and index_page <= max_count_page - 1 and !nxt.nil?
             nxt.click
-            sleep 2 # necessaire pour eviter de passer trop vite de page en page car sinon il ne detecte pas les lien ; hum hum , empirique et valuable testing
+            sleep 1 # necessaire pour eviter de passer trop vite de page en page car sinon il ne detecte pas les lien ; hum hum , empirique et valuable testing
           else
             break
 
@@ -567,117 +426,200 @@ module Keywords
       end
     end
 
-    def search_yahoo(max_count_page, domain=nil, geolocation)
-      url = "https://fr.search.yahoo.com/search?p=#{URI.encode(@words)}"
-      type_proxy = nil
-      proxy = nil
-      found = false
-
-      url_scrapped = ""
+    def evaluate_bing(max_count_page, domain=nil, driver)
       begin
         raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        #raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil? or domain.empty?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil?
 
-        type_proxy, proxy = Keywords::proxy(geolocation) unless geolocation == nil.to_json
+        css_elements = {:result => 'h2 > a',
+                        :engine_url => "https://www.bing.com//",
+                        :keywords_field_css => 'q',
+                        :next_css => 'a.sb_pagN'}
 
-        max_count_page.times { |index_page|
-          sleep [*5..20].sample
+        evaluate_webdriver(max_count_page, :bing, css_elements, domain, driver)
 
-          #pour google,on est contraint d'utiliser un browser pour scraper. Pour tester en phase de dev au boulot, lenavgateur
-          # doit passer par un proxy socks.
-          # Pour les requetes http directe,pas de besoin de porxy socks.
-          # donc comme on ne peut parametrer qu'un proxy à la fois :
-          # soit on teste google en executant keyword_saas.rb avec un proxy socks
-          # soit on teste yaho,bing en executant keyword_saas.rb avec un proxy http
-          # en pahse de production/test (pas au boulot) :
-          # soit on interroge  google,yaho,bing en executant keyword_saas.rb avec un proxy http
-          # soit on interroge google,yaho,bing en executant keyword_saas.rb sans proxy
-          page = open(url,
-                      "User-Agent" => "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:33.0) Gecko/20100101 Firefox/33.0",
-                      type_proxy => proxy,
-                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if $staging != "development" and !type_proxy.nil? and !proxy.nil?
-          page = open(url,
-                      "User-Agent" => UserAgentRandomizer::UserAgent.fetch(type: "desktop_browser").string,
-                      :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE).read if $staging == "development" or (type_proxy.nil? and proxy.nil?)
-
-          Nokogiri::HTML(page).css('h3 > a.td-u').each { |link|
-            # soit la landing url est = link
-            # soit le domain du website appartient (sous chaine) d'un link
-            begin
-              uri = URI.parse(link.attributes["href"].value)
-              title = link.title
-            rescue Exception => e
-            else
-              begin
-                # url extrait de la page de resultat courante
-                url_scrapped =/\/RU=(?<href>.+)\/RK=/.match(URI.unencode(uri.path))[:href]
-                uri_scrapped = URI.parse(url_scrapped)
-
-              rescue Exception => e
-
-              else
-                #utilisé par evaluate
-                unless domain.nil?
-                  found = uri_scrapped.hostname.include?(domain)
-
-                  if found
-                    @engines.merge!({:yahoo => {:url => url_scrapped, :index => index_page + 1}})
-
-                    break
-                  end
-                else
-                  #utilisé par search
-                  p "yahoo => page #{index_page + 1} : #{title}, #{url_scrapped}"
-                  if @engines[url_scrapped].nil?
-                    @engines.merge!({url_scrapped => [{:engine => :yahoo, :index => index_page + 1, :title => title}]})
-                  else
-                    @engines[url_scrapped] << {:engine => :yahoo, :index => index_page + 1, :title => title}
-                  end
-                end
-              end
-            end
-
-          }
-          #recherche du lien "Suivant"  pour passer à la page suivante
-          nxt = Nokogiri::HTML(page).css('a#pg-next').first
-
-          # passe à la page suivante
-          if !found and index_page <= max_count_page - 1 and !nxt.nil?
-            url = nxt.attributes["href"].value
-
-          else
-            #on a terminé :
-            # soit parce qu'on a trouvé l'url ou une url contenant le domain du website
-            # soit pas d'url repondant au critere et le nombre de page max de recherche est dépassé
-            break
-
-          end
-        }
       rescue Exception => e
-        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "yahoo"}, :error => e)
-
-      else
-      ensure
+        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "bing"}, :error => e)
 
       end
     end
 
 
+    def evaluate_google(max_count_page, domain=nil, type, driver)
+      begin
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil?
+
+        # case type
+        #   when :link # recherche les link
+        #     element_css = 'h3.r > a'
+        #   when :sea # recherche les Adsense
+        #     element_css = 'ol > li.ads-ad > h3 > a:nth-child(2)'
+        # end
+
+        css_elements = {:result => type == :link ? 'h3.r > a' : 'ol > li.ads-ad > h3 > a:nth-child(2)',
+                        :engine_url => "https://www.google.fr/",
+                        :keywords_field_css => 'q',
+                        :next_css => 'a#pnnext.pn'}
+
+        evaluate_webdriver(max_count_page, :google, css_elements, domain, driver)
+
+      rescue Exception => e
+        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "google"}, :error => e)
+
+      end
+    end
+
+    def evaluate_yahoo(max_count_page, domain=nil, driver)
+      begin
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil?
+
+        css_elements = {:result => 'h3.title > a.td-u',
+                        :engine_url => "https://fr.search.yahoo.com",
+                        :keywords_field_css => 'p',
+                        :next_css => 'a.next'}
+
+        evaluate_webdriver(max_count_page, :yahoo, css_elements, domain, driver)
+
+      rescue Exception => e
+        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "yahoo"}, :error => e)
+
+      end
+    end
+
+
+    def search_bing(max_count_page, driver)
+      begin
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
+
+        css_elements = {:result => 'h2 > a',
+                        :engine_url => "https://www.bing.com//",
+                        :keywords_field_css => 'q',
+                        :next_css => 'a.sb_pagN'}
+
+        search_webdriver(max_count_page, :bing, css_elements, driver)
+
+      rescue Exception => e
+        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "bing"}, :error => e)
+
+      end
+
+    end
+
+    def search_google(max_count_page, driver)
+      begin
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
+
+        css_elements = {:result => 'h3.r > a',
+                        :engine_url => "https://www.google.fr/",
+                        :keywords_field_css => 'q',
+                        :next_css => 'a#pnnext.pn'}
+
+        search_webdriver(max_count_page, :google, css_elements, driver)
+
+      rescue Exception => e
+        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "google"}, :error => e)
+
+      end
+
+
+    end
+
+    def search_yahoo(max_count_page, driver)
+      begin
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
+
+        css_elements = {:result => 'h3.title > a.td-u',
+                        :engine_url => "https://fr.search.yahoo.com",
+                        :keywords_field_css => 'p',
+                        :next_css => 'a.next'}
+
+        search_webdriver(max_count_page, :yahoo, css_elements, driver)
+
+      rescue Exception => e
+        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "yahoo"}, :error => e)
+
+      end
+
+
+    end
+
+    def search_webdriver(max_count_page, engine, css_elements, driver)
+      begin
+        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "css_elements"}) if css_elements.nil? or css_elements.empty?
+
+        result_css = css_elements[:result]
+        engine_url = css_elements[:engine_url]
+        keywords_field_css = css_elements[:keywords_field_css]
+        next_css = css_elements[:next_css]
+
+        driver.navigate_to engine_url
+        element = driver.find_element(:name, keywords_field_css)
+        element.clear
+        element.send_keys "#{@words}"
+        element.submit
+
+      rescue Exception => e
+        raise e
+
+      else
+
+
+        max_count_page.times { |index_page|
+
+          driver.find_elements(:css, result_css).each { |link|
+            title = link.text
+
+            p "#{engine} => page #{index_page + 1} : #{title}, #{link["href"]}"
+
+            if @engines[link["href"]].nil?
+              @engines.merge!({link["href"] => [{:engine => engine, :index => index_page, :title => title}]})
+
+            else
+              @engines[link["href"]] << {:engine => engine, :index => index_page, :title => title}
+
+            end
+          }
+
+          nxt = driver.find_element(:css, next_css)
+
+          if index_page < max_count_page - 1 and !nxt.nil?
+            nxt.click
+            sleep 1 # necessaire pour eviter de passer trop vite de page en page car sinon il ne detecte pas les lien ; hum hum , empirique et valuable testing
+          else
+            break
+
+          end
+
+        }
+
+      ensure
+        driver.clear_cookies
+      end
+    end
+
   end
 
-#----------------------------------------------------------------------------------------------------------------
-# semrush_ident_authen(driver)
-#----------------------------------------------------------------------------------------------------------------
-# accede au site web semrush et i'dentifie le user du fichier de parametre
-#----------------------------------------------------------------------------------------------------------------
-# input :
-# un driver, un instance de selenium-webdriver
-# output :
-# RAS
-# exception :
-# NOT_IDENTIFY_SEMRUSH
-#----------------------------------------------------------------------------------------------------------------
-#----------------------------------------------------------------------------------------------------------------
+  #----------------------------------------------------------------------------------------------------------------
+  # semrush_ident_authen(driver)
+  #----------------------------------------------------------------------------------------------------------------
+  # accede au site web semrush et i'dentifie le user du fichier de parametre
+  #----------------------------------------------------------------------------------------------------------------
+  # input :
+  # un driver, un instance de selenium-webdriver
+  # output :
+  # RAS
+  # exception :
+  # NOT_IDENTIFY_SEMRUSH
+  #----------------------------------------------------------------------------------------------------------------
+  #----------------------------------------------------------------------------------------------------------------
   def semrush_ident_authen(driver)
     init_logging
 
@@ -727,38 +669,38 @@ module Keywords
     end
   end
 
-#----------------------------------------------------------------------------------------------------------------
-# scrape(hostname, driver)
-#----------------------------------------------------------------------------------------------------------------
-# fournit la liste des mots cles d'un domaine au moyen de semrush.com
-#----------------------------------------------------------------------------------------------------------------
-# input :
-# un domaine sans http
-# une instance de webdriver
+  #----------------------------------------------------------------------------------------------------------------
+  # scrape(hostname, driver)
+  #----------------------------------------------------------------------------------------------------------------
+  # fournit la liste des mots cles d'un domaine au moyen de semrush.com
+  #----------------------------------------------------------------------------------------------------------------
+  # input :
+  # un domaine sans http
+  # une instance de webdriver
 
-# en options :
-# :geolocation = les propriétés d'une geolocation pour faire la requete
-# :scraped_f = un nom et chemin absolue de fichier pour stocker les resultats
-# :range = :selection (le couple [landing_link, keywords]) | :full (toutes les colonnes)
-#
-# output :
-# par defaut :
-# une String contenant toutes les données avec toutes les colonnes
-#
-# sinon un Array dont chaque occurence contient le couple [landing_link, keywords] par exemple ou d'autres colonnes
-# sinon un File contenant toutes les données avec toutes les colonnes
-# sinon un File dont chaque occurence contient le couple [landing_link, keywords] par exemple ou d'autres colonnes
-#----------------------------------------------------------------------------------------------------------------
-# si on capte un pb de deconnection du site semrush car le couple user/password s'est connecté à partir d'un autre
-# navigateur alors on rejoue l'identi/authen (on capte une exception, on appelle semrush_ident_authen et on fait un retry)
-#----------------------------------------------------------------------------------------------------------------
+  # en options :
+  # :geolocation = les propriétés d'une geolocation pour faire la requete
+  # :scraped_f = un nom et chemin absolue de fichier pour stocker les resultats
+  # :range = :selection (le couple [landing_link, keywords]) | :full (toutes les colonnes)
+  #
+  # output :
+  # par defaut :
+  # une String contenant toutes les données avec toutes les colonnes
+  #
+  # sinon un Array dont chaque occurence contient le couple [landing_link, keywords] par exemple ou d'autres colonnes
+  # sinon un File contenant toutes les données avec toutes les colonnes
+  # sinon un File dont chaque occurence contient le couple [landing_link, keywords] par exemple ou d'autres colonnes
+  #----------------------------------------------------------------------------------------------------------------
+  # si on capte un pb de deconnection du site semrush car le couple user/password s'est connecté à partir d'un autre
+  # navigateur alors on rejoue l'identi/authen (on capte une exception, on appelle semrush_ident_authen et on fait un retry)
+  #----------------------------------------------------------------------------------------------------------------
   def scrape(hostname, driver, opts={})
     init_logging
     #"www.epilation-laser-definitive.info"
     type_proxy = nil
     proxy = nil
     keywords = ""
-    keywords_io = nil
+    results_io = nil
 
     unless opts[:geolocation].nil?
       type_proxy, proxy = proxy(opts[:geolocation])
@@ -822,14 +764,14 @@ module Keywords
         @logger.an_event.debug "uri keywords csv file semrush : #{href}"
 
         if !type_proxy.nil? and !proxy.nil?
-          keywords_io = open(href,
-                             "User-Agent" => driver.user_agent, # n'est pas obligatoire
-                             type_proxy => proxy)
+          results_io = open(href,
+                            "User-Agent" => driver.user_agent, # n'est pas obligatoire
+                            type_proxy => proxy)
           @logger.an_event.debug "with proxy #{proxy} keywords csv file semrush downloaded #{keywords.to_yaml}"
 
         else
-          keywords_io = open(href,
-                             "User-Agent" => driver.user_agent)
+          results_io = open(href,
+                            "User-Agent" => driver.user_agent)
           @logger.an_event.debug "keywords csv file semrush downloaded #{keywords.to_yaml}"
 
         end
@@ -840,7 +782,7 @@ module Keywords
 
       else
         if keywords_f.nil?
-          keywords = keywords_io.read
+          keywords = results_io.read
           @logger.an_event.debug "lecture du fichier csv et rangement dans string"
           if range == :full
             #String
@@ -864,7 +806,7 @@ module Keywords
 
           if range == :full
             #File
-            FileUtils.cp(keywords_io,
+            FileUtils.cp(results_io,
                          keywords_f)
             @logger.an_event.debug "copy du fichier csv dans flow #{keywords_f}"
 
@@ -872,7 +814,7 @@ module Keywords
             #File
             #select url & keywords colonne
             keywords_f = File.open(keywords_f, "w+:bom|utf-8")
-            CSV.open(keywords_io,
+            CSV.open(results_io,
                      "r:bom|utf-8",
                      {headers: true,
                       converters: :numeric,
@@ -894,14 +836,14 @@ module Keywords
 
   end
 
-#keywords_file is absolute path file flow
+  #keywords_file is absolute path file flow
   def scrape_as_saas(hostname, opts={})
     init_logging
     #"www.epilation-laser-definitive.info"
     type_proxy = nil
     proxy = nil
     keywords = ""
-    keywords_io = nil
+    results_io = nil
 
     keywords_f = opts.fetch(:scraped_f, nil)
     @logger.an_event.debug "keywords flow #{keywords_f}"
@@ -926,9 +868,9 @@ module Keywords
       href = "http://#{saas_host}:#{saas_port}/?action=scrape&hostname=#{hostname}"
       @logger.an_event.debug "uri scrape_saas : #{href}"
 
-      keywords_io = open(href,
-                         "r:utf-8",
-                         {:read_timeout => time_out})
+      results_io = open(href,
+                        "r:utf-8",
+                        {:read_timeout => time_out})
 
     rescue Exception => e
       @logger.an_event.warn "scrape keywords as saas for #{hostname} : #{e.message}"
@@ -940,7 +882,7 @@ module Keywords
 
     else
       if keywords_f.nil?
-        keywords = keywords_io.read
+        keywords = results_io.read
         @logger.an_event.debug "lecture du fichier csv et rangement dans string"
         if range == :full
           #String
@@ -964,7 +906,7 @@ module Keywords
 
         if range == :full
           #File
-          FileUtils.cp(keywords_io,
+          FileUtils.cp(results_io,
                        keywords_f)
           @logger.an_event.debug "copy du fichier csv dans flow #{keywords_f}"
 
@@ -972,7 +914,7 @@ module Keywords
           #File
           #select url & keywords colonne
           keywords_f = File.open(keywords_f, "w+:bom|utf-8")
-          CSV.open(keywords_io,
+          CSV.open(results_io,
                    "r:bom|utf-8",
                    {headers: true,
                     converters: :numeric,
@@ -990,24 +932,24 @@ module Keywords
     end
   end
 
-#----------------------------------------------------------------------------------------------------------------
-# suggest(engine, keyword, domain, driver)
-#----------------------------------------------------------------------------------------------------------------
-# fournit la liste des suggestions d'un mot clé pour une engine
-#----------------------------------------------------------------------------------------------------------------
-# input :
-# un moteur de recherche
-# un mot clé
-# un domaine sans http
-# une instance de webdriver
-# en options :
-# un nom absolu de fichier pour stocker les couples [landing_link, keywords] ; aucun tableau ne sera fournit en Output
-# output :
-# un tableau dont chaque occurence contient le couple [landing_link, keywords]
-# nom absolu de fichier passé en input contenant les données issues de semtush en l'état
-#----------------------------------------------------------------------------------------------------------------
-# soit on retourne un tableau de mot clé, soit un flow conte
-#----------------------------------------------------------------------------------------------------------------
+  #----------------------------------------------------------------------------------------------------------------
+  # suggest(engine, keyword, domain, driver)
+  #----------------------------------------------------------------------------------------------------------------
+  # fournit la liste des suggestions d'un mot clé pour une engine
+  #----------------------------------------------------------------------------------------------------------------
+  # input :
+  # un moteur de recherche
+  # un mot clé
+  # un domaine sans http
+  # une instance de webdriver
+  # en options :
+  # un nom absolu de fichier pour stocker les couples [landing_link, keywords] ; aucun tableau ne sera fournit en Output
+  # output :
+  # un tableau dont chaque occurence contient le couple [landing_link, keywords]
+  # nom absolu de fichier passé en input contenant les données issues de semtush en l'état
+  #----------------------------------------------------------------------------------------------------------------
+  # soit on retourne un tableau de mot clé, soit un flow conte
+  #----------------------------------------------------------------------------------------------------------------
   def suggest(keyword, driver)
     init_logging
 
@@ -1064,24 +1006,24 @@ module Keywords
 
   end
 
-#----------------------------------------------------------------------------------------------------------------
-# suggest(engine, keyword, domain, driver)
-#----------------------------------------------------------------------------------------------------------------
-# fournit la liste des suggestions d'un mot clé pour une engine
-#----------------------------------------------------------------------------------------------------------------
-# input :
-# un moteur de recherche
-# un mot clé
-# un domaine sans http
-# une instance de webdriver
-# en options :
-# un nom absolu de fichier pour stocker les couples [landing_link, keywords] ; aucun tableau ne sera fournit en Output
-# output :
-# un tableau dont chaque occurence contient le couple [landing_link, keywords]
-# nom absolu de fichier passé en input contenant les données issues de semtush en l'état
-#----------------------------------------------------------------------------------------------------------------
-# soit on retourne un tableau de mot clé, soit un flow conte
-#----------------------------------------------------------------------------------------------------------------
+  #----------------------------------------------------------------------------------------------------------------
+  # suggest(engine, keyword, domain, driver)
+  #----------------------------------------------------------------------------------------------------------------
+  # fournit la liste des suggestions d'un mot clé pour une engine
+  #----------------------------------------------------------------------------------------------------------------
+  # input :
+  # un moteur de recherche
+  # un mot clé
+  # un domaine sans http
+  # une instance de webdriver
+  # en options :
+  # un nom absolu de fichier pour stocker les couples [landing_link, keywords] ; aucun tableau ne sera fournit en Output
+  # output :
+  # un tableau dont chaque occurence contient le couple [landing_link, keywords]
+  # nom absolu de fichier passé en input contenant les données issues de semtush en l'état
+  #----------------------------------------------------------------------------------------------------------------
+  # soit on retourne un tableau de mot clé, soit un flow conte
+  #----------------------------------------------------------------------------------------------------------------
   def suggest_as_saas(keyword)
     init_logging
 
@@ -1103,9 +1045,9 @@ module Keywords
       href = "http://#{saas_host}:#{saas_port}/?action=suggest&keywords=#{keyword}"
       @logger.an_event.debug "uri suggest_saas : #{href}"
 
-      keywords_io = open(href,
-                         "r:utf-8",
-                         {:read_timeout => time_out})
+      results_io = open(href,
+                        "r:utf-8",
+                        {:read_timeout => time_out})
 
     rescue Exception => e
       @logger.an_event.warn "suggest keywords as saas for #{keyword} : #{e.message}"
@@ -1117,7 +1059,7 @@ module Keywords
       suggesteds
 
     else
-      suggesteds = JSON.parse(keywords_io.string)
+      suggesteds = JSON.parse(results_io.string)
       @logger.an_event.debug "suggested keywords as saas for #{keyword} : #{suggesteds}"
 
       suggesteds
@@ -1135,7 +1077,7 @@ module Keywords
   end
 
 
-#geolocation ne doit pas être nil
+  #geolocation ne doit pas être nil
   def proxy(geolocation)
     if !geolocation[:ip].nil? and !geolocation[:port].nil? and
         !geolocation[:user].nil? and !geolocation[:pwd].nil?
@@ -1153,14 +1095,13 @@ module Keywords
     [type_proxy, proxy]
   end
 
-
-  module_function :proxy
-  module_function :init_logging
   module_function :semrush_ident_authen
   module_function :scrape
   module_function :scrape_as_saas
   module_function :suggest_as_saas
   module_function :suggest
+  module_function :init_logging
+  module_function :proxy
 
 
 end

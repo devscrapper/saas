@@ -32,23 +32,29 @@ class KeywordsConnection < EM::HttpServer::Server
     begin
       query_values = Addressable::URI.parse("?#{Addressable::URI.unencode_component(@http_query_string)}").query_values
 
+      @logger.an_event.debug "query_values #{query_values}"
+
       raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "action"}) if query_values["action"].nil? or query_values["action"].empty?
 
+      @logger.an_event.debug "check data for <#{query_values["action"]}> action"
       case query_values["action"]
-        when "online"
 
         when "scrape", "count"
+
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "hostname"}) if query_values["hostname"].nil? or query_values["hostname"].empty?
 
         when "suggest"
+
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "keywords"}) if query_values["keywords"].nil? or query_values["keywords"].empty?
 
         when "evaluate"
+
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "keywords"}) if query_values["keywords"].nil? or query_values["keywords"].empty?
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if query_values["domain"].nil? or query_values["domain"].empty?
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "type"}) if query_values["type"].nil? or query_values["type"].empty?
 
         when "search"
+
           raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "keywords"}) if query_values["keywords"].nil? or query_values["keywords"].empty?
           if query_values["engines"].nil? or query_values["engines"].empty?
             query_values["engines"] = [:google, :yahoo, :bing]
@@ -64,6 +70,8 @@ class KeywordsConnection < EM::HttpServer::Server
             query_values["count_pages"] = query_values["count_pages"].to_i
 
           end
+
+          @logger.an_event.debug "query_values #{query_values}"
 
         else
           raise Error.new(ACTION_UNKNOWN, :values => {:action => query_values["action"]})
@@ -88,6 +96,7 @@ class KeywordsConnection < EM::HttpServer::Server
       response.send_response
 
     else
+      @logger.an_event.debug "execution <#{query_values["action"]}> action"
 
       case query_values["action"]
         #http://localhost:9251/?action=scrape&hostname=dfijgmsdfjgmdfjgdfljbdfljbgdfljbdflg
@@ -95,10 +104,23 @@ class KeywordsConnection < EM::HttpServer::Server
           # une seule instance de scrape à la fois car un seul id utilisateur pour semrush qui interdit le scrape concurrent
           begin
 
-            webscraper = @webscraper_factory.book(1, @geolocation)[0]
+            case query_values["action"]
+              when "scrape"
+                webscrapers = @webscraper_factory.book(1, @geolocation)
 
-            results = scrape(query_values["hostname"], webscraper) if query_values["action"] == "scrape"
-            results = count(query_values["hostname"], webscraper) if query_values["action"] == "count"
+                @logger.an_event.debug "count book webscrapers #{webscrapers.count}"
+
+                results = scrape(query_values["hostname"], webscrapers)
+
+              when "count"
+                webscrapers = @webscraper_factory.book(1, @geolocation)
+
+                @logger.an_event.debug "count book webscrapers #{webscrapers.count}"
+
+                results = count(query_values["hostname"], webscrapers)
+
+            end
+
 
           rescue Exception => e
             @logger.an_event.error e.message
@@ -109,6 +131,7 @@ class KeywordsConnection < EM::HttpServer::Server
             response.send_response
 
           else
+            @logger.an_event.debug results
             response = EM::DelegatedHttpResponse.new(self)
             response.status = 200
             response.content_type 'application/json'
@@ -116,7 +139,8 @@ class KeywordsConnection < EM::HttpServer::Server
             response.send_response
 
           ensure
-            @webscraper_factory.free(webscraper) unless webscraper.nil?
+            @webscraper_factory.free(webscrapers) unless webscrapers.nil?
+            @logger.an_event.debug "free #{webscrapers.count} webscraper(s)"
 
           end
         # http://#{saas_host}:#{saas_port}/?action=suggest&keywords=#{keyword}
@@ -132,42 +156,60 @@ class KeywordsConnection < EM::HttpServer::Server
 
               case query_values["action"]
                 when "suggest"
-                  webscraper = @webscraper_factory.book(1, @geolocation)[0]
-                  results = suggest(query_values["keywords"], webscraper)
+
+                  webscrapers = @webscraper_factory.book(1, @geolocation)
+
+                  @logger.an_event.debug "count book webscrapers #{webscrapers.count}"
+
+                  results = suggest(query_values["keywords"], webscrapers)
 
                 when "evaluate"
+
                   case query_values["type"]
                     when "link"
-                      webscrapers = @webscraper_factory.book(3, @geolocation)
+                      webscraper_count = 3
 
                     when "sea"
-                      webscraper = @webscraper_factory.book(1, @geolocation)[0]
+                      webscraper_count = 1
 
                   end
+                  webscrapers = @webscraper_factory.book(webscraper_count, @geolocation)
 
-                  results = evaluate(query_values["keywords"], query_values["domain"], query_values["type"], webscrapers || webscraper)
+                  @logger.an_event.debug "count book webscrapers #{webscraper.count}"
+
+                  results = evaluate(query_values["keywords"],
+                                     query_values["domain"],
+                                     query_values["type"], webscrapers)
 
                 when "online"
                   results = "OK"
 
                 when "search"
+
                   webscrapers = @webscraper_factory.book(query_values["engines"].count, @geolocation)
+
+                  @logger.an_event.debug "count book webscrapers #{webscrapers.count}"
+
                   results = search(query_values["engines"],
                                    query_values["keywords"],
                                    query_values["count_pages"], webscrapers)
               end
 
             rescue Error => e
+              @logger.an_event.error e.message
+
               results = e
 
             rescue Exception => e
+              @logger.an_event.error e.message
               results = Error.new(ACTION_NOT_EXECUTE, :values => {:action => query_values["action"]}, :error => e)
 
             else
               results # as usual, the last expression evaluated in the block will be the return value.
 
             ensure
-              @webscraper_factory.free(webscraper) unless webscraper.nil?
+              @logger.an_event.debug "free #{webscrapers.count} webscraper(s) : "
+
               webscrapers.each { |webscraper| @webscraper_factory.free(webscraper) } unless webscrapers.nil?
 
             end
@@ -209,34 +251,34 @@ class KeywordsConnection < EM::HttpServer::Server
 
 
   private
-  def scrape(hostname, webscraper)
+  def scrape(hostname, webscrapers)
     @logger.an_event.info "ask keywords for #{hostname}"
 
-    Keywords::semrush_ident_authen(webscraper)
+    Keywords::semrush_ident_authen(webscrapers[0])
 
     @logger.an_event.info "identification to semrush for #{hostname}"
 
     opts = {}
     opts.merge!(:geolocation => @geolocation.to_json) unless @geolocation.nil?
 
-    keywords_arr = Keywords::scrape(hostname, webscraper, opts)
+    keywords_arr = Keywords::scrape(hostname, webscrapers[0], opts)
 
     @logger.an_event.info "keywords scraped from semrush for #{hostname}"
 
     keywords_arr
   end
 
-  def count(hostname, webscraper)
+  def count(hostname, webscrapers)
     @logger.an_event.info "count keywords for #{hostname}"
 
-    Keywords::semrush_ident_authen(webscraper)
+    Keywords::semrush_ident_authen(webscrapers[0])
 
     @logger.an_event.info "identification to semrush for #{hostname}"
 
     opts = {:range => :selection}
     opts.merge!(:geolocation => @geolocation.to_json) unless @geolocation.nil?
 
-    keywords_arr = Keywords::scrape(hostname, webscraper, opts)
+    keywords_arr = Keywords::scrape(hostname, webscrapers[0], opts)
 
     @logger.an_event.info "count keywords scraped from semrush for #{hostname}"
 
@@ -263,10 +305,10 @@ class KeywordsConnection < EM::HttpServer::Server
     kw.engines.to_json
   end
 
-  def suggest(keywords, webscraper)
+  def suggest(keywords, webscrapers)
     @logger.an_event.info "suggest keywords for #{keywords}"
 
-    keywords_arr = Keywords::suggest(keywords, webscraper)
+    keywords_arr = Keywords::suggest(keywords, webscrapers[0])
 
     @logger.an_event.info "suggested #{keywords_arr.size} keywords for #{keywords}"
 
@@ -283,7 +325,7 @@ class KeywordsConnection < EM::HttpServer::Server
         kw.evaluate_link(domain, webscrapers)
 
       when "sea"
-        kw.evaluate_sea(domain, webscrapers)
+        kw.evaluate_sea(domain, webscrapers[0])
 
     end
 
