@@ -63,6 +63,13 @@ class KeywordsConnection < EM::HttpServer::Server
             query_values["engines"] = query_values["engines"].split("|").map! { |e| e.to_sym }
 
           end
+          if query_values["index_page"].nil? or query_values["index_page"].empty?
+            query_values["index_page"] = 1
+
+          else
+            query_values["index_page"] = query_values["index_page"].to_i
+
+          end
           if query_values["count_pages"].nil? or query_values["count_pages"].empty?
             query_values["count_pages"] = 1
 
@@ -70,7 +77,6 @@ class KeywordsConnection < EM::HttpServer::Server
             query_values["count_pages"] = query_values["count_pages"].to_i
 
           end
-
           @logger.an_event.debug "query_values #{query_values}"
 
         else
@@ -192,6 +198,7 @@ class KeywordsConnection < EM::HttpServer::Server
 
                   results = search(query_values["engines"],
                                    query_values["keywords"],
+                                   query_values["index_page"],
                                    query_values["count_pages"], webscrapers)
               end
 
@@ -285,22 +292,22 @@ class KeywordsConnection < EM::HttpServer::Server
     {:count => keywords_arr.size}.to_json
   end
 
-  def search(engines, keywords, count_pages, webscrapers)
-    @logger.an_event.info "search keywords for #{keywords}"
+  def search(engines, keywords, index, count_pages, webscrapers)
+    @logger.an_event.info "search keywords for <#{keywords}> from index page : #{index} to index page : #{index + count_pages}"
 
     s = Time.now
 
     kw = Keywords::Keyword.new(keywords)
 
 
-    kw.search(engines, count_pages, webscrapers)
+    kw.search(engines, index, count_pages, webscrapers)
 
     e = Time.now
 
     delay = e - s
 
     p "delay search : #{delay}"
-    @logger.an_event.info "search keywords #{keywords} is #{kw.results}"
+    @logger.an_event.info "search keywords <#{keywords}> results : #{kw.results}"
 
     kw.results.to_json
   end

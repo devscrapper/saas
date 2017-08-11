@@ -33,14 +33,15 @@ module Keywords
   INDEX_MAX = 3
   ALPHABET = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
   @logger = nil
-  WEIGHT_ENGINE = 3
-  WEIGHT_INDEX = -1
+  WEIGHT_ENGINE = 10
+  WEIGHT_INDEX_PAGE = -3
+  WEIGHT_INDEX_LINK = -1
   ENGINES = {:google => {:result => 'h3.r > a',
                          :engine_url => "https://www.google.fr/",
                          :keywords_field_css => 'q',
                          :next_css => 'a#pnnext.pn'},
              :bing => {:result => 'h2 > a',
-                       :engine_url => "https://www.bing.com//",
+                       :engine_url => "https://www.bing.com/",
                        :keywords_field_css => 'q',
                        :next_css => 'a.sb_pagN'},
              :yahoo => {:result => 'h3.title > a.td-u',
@@ -203,7 +204,7 @@ module Keywords
     # si opts is_a(Hash) alors => proxy, les rquete http passe par un proxy
     # si opts n'est pas un hash => driver
     # si opts = nil => pas de proxy pour requete http
-    def search(engines, count_pages, drivers)
+    def search(engines, index, count_pages, drivers)
       begin
         threads = []
 
@@ -212,7 +213,7 @@ module Keywords
             s = Time.now
             engine = engines[i]
             Thread.current["name"] = engine;
-            search_webdriver(count_pages, engine, ENGINES[engine], drivers[i])
+            search_webdriver(index, count_pages, engine, ENGINES[engine], drivers[i])
             e = Time.now
             delay = e - s
             p "delay #{engine} #{delay}"
@@ -229,7 +230,7 @@ module Keywords
       end
     end
 
-    def search_as_saas(engines=[:google, :yahoo, :bing], count_pages=1)
+    def search_as_saas(engines=[:google, :yahoo, :bing], index_page=1,count_pages=1)
       # engines est un array [:google, :yahoo, :bing]
       try_count = 3
 
@@ -246,7 +247,7 @@ module Keywords
 
 
         #query http vers keywords saas
-        href = "http://#{saas_host}:#{saas_port}/?action=search&keywords=#{@words}&engines=#{engines}&count_pages=#{count_pages}"
+        href = "http://#{saas_host}:#{saas_port}/?action=search&keywords=#{@words}&engines=#{engines}&index_page=#{index_page}&count_pages=#{count_pages}"
 
         results_io = open(href,
                           "r:utf-8",
@@ -440,7 +441,7 @@ module Keywords
       end
     end
 
-    def search_webdriver(max_count_page, engine, css_elements, driver)
+    def search_webdriver(start_index, max_count_page, engine, css_elements, driver)
       begin
         raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "css_elements"}) if css_elements.nil? or css_elements.empty?
 
@@ -459,30 +460,33 @@ module Keywords
         raise e
 
       else
+        # deplacement jusqu'à la page de depart
+        (start_index - 1).times { driver.find_element(:css, next_css).click; sleep 1 }
 
-
-        max_count_page.times { |index_page|
-
+        max_count_page.times { |index|
+          page_index = start_index -1 + index
+          link_index = 1
           driver.find_elements(:css, result_css).each { |link|
             title = link.text
 
-            p "#{engine} => page #{index_page + 1} : #{title}, #{link["href"]}"
+            #p "#{engine} => page #{page_index + 1} : #{title}, #{link["href"]}"
 
             if @results[link["href"]].nil?
-              @results.merge!({link["href"] => {:engines => [{:name => engine, :index => index_page + 1, :title => title}],
-                                                :weight => WEIGHT_ENGINE + WEIGHT_INDEX * (index_page + 1)}
+              @results.merge!({link["href"] => {:engines => [{:name => engine, :index => page_index + 1, :title => title}],
+                                                :weight => WEIGHT_ENGINE + WEIGHT_INDEX_PAGE * page_index + WEIGHT_INDEX_LINK * link_index}
                               })
 
             else
-              @results[link["href"]][:engines] << {:name => engine, :index => index_page + 1, :title => title}
-              @results[link["href"]][:weight] += WEIGHT_ENGINE + WEIGHT_INDEX * (index_page + 1)
-
+              unless @results[link["href"]][:engines].map { |engine| engine[:name] }.include?(engine)
+                @results[link["href"]][:engines] << {:name => engine, :index => page_index + 1, :title => title}
+                @results[link["href"]][:weight] += WEIGHT_ENGINE + WEIGHT_INDEX_PAGE * page_index + WEIGHT_INDEX_LINK * link_index
+              end
             end
           }
 
           nxt = driver.find_element(:css, next_css)
 
-          if index_page < max_count_page - 1 and !nxt.nil?
+          if page_index < max_count_page - 1 and !nxt.nil?
             nxt.click
             sleep 1 # necessaire pour eviter de passer trop vite de page en page car sinon il ne detecte pas les lien ; hum hum , empirique et valuable testing
           else
