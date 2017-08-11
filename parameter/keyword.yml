@@ -6,6 +6,8 @@ development:
   :time_out_saas_scrape: 120
   :time_out_saas_suggest: 180
   :time_out_saas_evaluate: 180
+  :time_out_saas_search: 180
+
 test:
   :semrush_user: info@lesclesdumidi.com
   :semrush_pwd:  123456
@@ -13,6 +15,7 @@ test:
   :time_out_saas_scrape: 120
   :time_out_saas_suggest: 180
   :time_out_saas_evaluate: 180
+  :time_out_saas_search: 180
 
 production:
   :semrush_user: info@lesclesdumidi.com
@@ -21,3 +24,4 @@ production:
   :time_out_saas_scrape: 120
   :time_out_saas_suggest: 180
   :time_out_saas_evaluate: 180
+  :time_out_saas_search: 180
