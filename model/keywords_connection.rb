@@ -175,7 +175,7 @@ class KeywordsConnection < EM::HttpServer::Server
                   end
                   webscrapers = @webscraper_factory.book(webscraper_count, @geolocation)
 
-                  @logger.an_event.debug "count book webscrapers #{webscraper.count}"
+                  @logger.an_event.debug "count book webscrapers #{webscrapers.count}"
 
                   results = evaluate(query_values["keywords"],
                                      query_values["domain"],
@@ -300,9 +300,9 @@ class KeywordsConnection < EM::HttpServer::Server
     delay = e - s
 
     p "delay search : #{delay}"
-    @logger.an_event.info "search keywords #{keywords} is #{kw.engines}"
+    @logger.an_event.info "search keywords #{keywords} is #{kw.results}"
 
-    kw.engines.to_json
+    kw.results.to_json
   end
 
   def suggest(keywords, webscrapers)

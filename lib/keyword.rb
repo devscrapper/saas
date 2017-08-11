@@ -33,13 +33,31 @@ module Keywords
   INDEX_MAX = 3
   ALPHABET = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
   @logger = nil
+  WEIGHT_ENGINE = 3
+  WEIGHT_INDEX = -1
+  ENGINES = {:google => {:result => 'h3.r > a',
+                         :engine_url => "https://www.google.fr/",
+                         :keywords_field_css => 'q',
+                         :next_css => 'a#pnnext.pn'},
+             :bing => {:result => 'h2 > a',
+                       :engine_url => "https://www.bing.com//",
+                       :keywords_field_css => 'q',
+                       :next_css => 'a.sb_pagN'},
+             :yahoo => {:result => 'h3.title > a.td-u',
+                        :engine_url => "https://fr.search.yahoo.com",
+                        :keywords_field_css => 'p',
+                        :next_css => 'a.next'}
+  }
+
+
   class Keyword
     include Errors
     include Addressable
 
 
     attr_reader :words, #string of word
-                :engines # hash contenant par engine l'url et l'index de la page dans laquelle le domain a été trouvé
+                :engines, # hash contenant par engine l'url et l'index de la page dans laquelle le domain a été trouvé
+                :results # hash contenant par resultat de recherche, l'engine, l'index de la page dans laquelle appartient le resultat, le title du resultat
 
 
     #----------------------------------------------------------------------------------------------------------------
@@ -62,6 +80,7 @@ module Keywords
 
       @words = words.strip
       @engines = {}
+      @results = {}
     end
 
     #----------------------------------------------------------------------------------------------------------------
@@ -87,20 +106,30 @@ module Keywords
     # si opts is_a(Hash) alors => proxy, les rquete http passe par un proxy
     # si opts n'est pas un hash => driver
     # si opts = nil => pas de proxy pour requete http
-    def evaluate_link(domain, driver)
+    def evaluate_link(domain, drivers)
       begin
-        google = Thread.new { Thread.current["name"] = :google; evaluate_google(INDEX_MAX, domain, :link, driver[0]) }
-        yahoo = Thread.new { Thread.current["name"] = :yahoo; evaluate_yahoo(INDEX_MAX, domain, driver[1]) }
-        bing = Thread.new { Thread.current["name"] = :bing; evaluate_bing(INDEX_MAX, domain, driver[2]) }
+        threads = []
+        engines = ENGINES.to_a
+        engines.each_index { |i|
+          th = Thread.new {
+            s = Time.now
+            engine = engines[i][0]
+            css_properties = engines[i][1]
+            Thread.current["name"] = engine;
+            evaluate_webdriver(INDEX_MAX, engine, css_properties, domain, drivers[i])
 
-        #google.abort_on_exception = true
-        #yahoo.abort_on_exception = true
-        #bing.abort_on_exception = true
+            e = Time.now
+            delay = e - s
+            p "delay #{engine} #{delay}"
+          }
+          threads << th
+        }
 
-        #ThreadsWait.all_waits(google) do |t|
-        ThreadsWait.all_waits(google, yahoo, bing) do |t|
+        ThreadsWait.all_waits(threads) do |t|
 
         end
+
+
       rescue Exception => e
         raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:keyword => @words}, :error => e)
 
@@ -109,7 +138,10 @@ module Keywords
 
     def evaluate_sea(domain, driver)
       begin
-        evaluate_google(INDEX_MAX, domain, :sea, driver)
+        css_elements = ENGINES[:google]
+        css_elements[:result] = 'ol > li.ads-ad > div.ad_cclk > h3 > a:nth-child(2)'
+
+        evaluate_webdriver(INDEX_MAX, :google, css_elements, domain, driver)
 
       rescue Exception => e
         raise Error.new(KEYWORD_NOT_EVALUATED, :values => {:keyword => @words}, :error => e)
@@ -173,40 +205,22 @@ module Keywords
     # si opts = nil => pas de proxy pour requete http
     def search(engines, count_pages, drivers)
       begin
-        th = []
+        threads = []
 
-        if engines.include?(:google)
-          google = Thread.new {
+        engines.each_index { |i|
+          th = Thread.new {
             s = Time.now
-            Thread.current["name"] = :google; search_google(count_pages, drivers[0])
+            engine = engines[i]
+            Thread.current["name"] = engine;
+            search_webdriver(count_pages, engine, ENGINES[engine], drivers[i])
             e = Time.now
             delay = e - s
-            p "delay google #{delay}"
+            p "delay #{engine} #{delay}"
           }
-          th << google
-        end
-        if engines.include?(:yahoo)
-          yahoo = Thread.new {
-            s = Time.now
-            Thread.current["name"] = :yahoo; search_yahoo(count_pages, drivers[1])
-            e = Time.now
-            delay = e - s
-            p "delay yahoo #{delay}"
-          }
-          th << yahoo
-        end
-        if engines.include?(:bing)
-          bing = Thread.new {
-            s = Time.now
-            Thread.current["name"] = :bing; search_bing(count_pages, drivers[2])
-            e = Time.now
-            delay = e - s
-            p "delay bing #{delay}"
-          }
-          th << bing
-        end
+          threads << th
+        }
 
-        ThreadsWait.all_waits(th) do |t|
+        ThreadsWait.all_waits(threads) do |t|
 
         end
       rescue Exception => e
@@ -215,7 +229,7 @@ module Keywords
       end
     end
 
-    def search_as_saas(engines=[:google, :yahoo, :bing], index=1, count_pages=1)
+    def search_as_saas(engines=[:google, :yahoo, :bing], count_pages=1)
       # engines est un array [:google, :yahoo, :bing]
       try_count = 3
 
@@ -232,7 +246,7 @@ module Keywords
 
 
         #query http vers keywords saas
-        href = "http://#{saas_host}:#{saas_port}/?action=search&keywords=#{@words}&engines=#{engines}&index=#{index}&count_pages=#{count_pages}"
+        href = "http://#{saas_host}:#{saas_port}/?action=search&keywords=#{@words}&engines=#{engines}&count_pages=#{count_pages}"
 
         results_io = open(href,
                           "r:utf-8",
@@ -426,131 +440,6 @@ module Keywords
       end
     end
 
-    def evaluate_bing(max_count_page, domain=nil, driver)
-      begin
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil?
-
-        css_elements = {:result => 'h2 > a',
-                        :engine_url => "https://www.bing.com//",
-                        :keywords_field_css => 'q',
-                        :next_css => 'a.sb_pagN'}
-
-        evaluate_webdriver(max_count_page, :bing, css_elements, domain, driver)
-
-      rescue Exception => e
-        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "bing"}, :error => e)
-
-      end
-    end
-
-
-    def evaluate_google(max_count_page, domain=nil, type, driver)
-      begin
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil?
-
-        # case type
-        #   when :link # recherche les link
-        #     element_css = 'h3.r > a'
-        #   when :sea # recherche les Adsense
-        #     element_css = 'ol > li.ads-ad > h3 > a:nth-child(2)'
-        # end
-
-        css_elements = {:result => type == :link ? 'h3.r > a' : 'ol > li.ads-ad > h3 > a:nth-child(2)',
-                        :engine_url => "https://www.google.fr/",
-                        :keywords_field_css => 'q',
-                        :next_css => 'a#pnnext.pn'}
-
-        evaluate_webdriver(max_count_page, :google, css_elements, domain, driver)
-
-      rescue Exception => e
-        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "google"}, :error => e)
-
-      end
-    end
-
-    def evaluate_yahoo(max_count_page, domain=nil, driver)
-      begin
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "domain"}) if domain.nil?
-
-        css_elements = {:result => 'h3.title > a.td-u',
-                        :engine_url => "https://fr.search.yahoo.com",
-                        :keywords_field_css => 'p',
-                        :next_css => 'a.next'}
-
-        evaluate_webdriver(max_count_page, :yahoo, css_elements, domain, driver)
-
-      rescue Exception => e
-        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "yahoo"}, :error => e)
-
-      end
-    end
-
-
-    def search_bing(max_count_page, driver)
-      begin
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
-
-        css_elements = {:result => 'h2 > a',
-                        :engine_url => "https://www.bing.com//",
-                        :keywords_field_css => 'q',
-                        :next_css => 'a.sb_pagN'}
-
-        search_webdriver(max_count_page, :bing, css_elements, driver)
-
-      rescue Exception => e
-        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "bing"}, :error => e)
-
-      end
-
-    end
-
-    def search_google(max_count_page, driver)
-      begin
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
-
-        css_elements = {:result => 'h3.r > a',
-                        :engine_url => "https://www.google.fr/",
-                        :keywords_field_css => 'q',
-                        :next_css => 'a#pnnext.pn'}
-
-        search_webdriver(max_count_page, :google, css_elements, driver)
-
-      rescue Exception => e
-        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "google"}, :error => e)
-
-      end
-
-
-    end
-
-    def search_yahoo(max_count_page, driver)
-      begin
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "max_count_page"}) if max_count_page.nil?
-        raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "driver"}) if driver.nil?
-
-        css_elements = {:result => 'h3.title > a.td-u',
-                        :engine_url => "https://fr.search.yahoo.com",
-                        :keywords_field_css => 'p',
-                        :next_css => 'a.next'}
-
-        search_webdriver(max_count_page, :yahoo, css_elements, driver)
-
-      rescue Exception => e
-        raise Error.new(KEYWORD_NOT_FOUND, :values => {:keyword => @words, :engine => "yahoo"}, :error => e)
-
-      end
-
-
-    end
-
     def search_webdriver(max_count_page, engine, css_elements, driver)
       begin
         raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "css_elements"}) if css_elements.nil? or css_elements.empty?
@@ -579,11 +468,14 @@ module Keywords
 
             p "#{engine} => page #{index_page + 1} : #{title}, #{link["href"]}"
 
-            if @engines[link["href"]].nil?
-              @engines.merge!({link["href"] => [{:engine => engine, :index => index_page, :title => title}]})
+            if @results[link["href"]].nil?
+              @results.merge!({link["href"] => {:engines => [{:name => engine, :index => index_page + 1, :title => title}],
+                                                :weight => WEIGHT_ENGINE + WEIGHT_INDEX * (index_page + 1)}
+                              })
 
             else
-              @engines[link["href"]] << {:engine => engine, :index => index_page, :title => title}
+              @results[link["href"]][:engines] << {:name => engine, :index => index_page + 1, :title => title}
+              @results[link["href"]][:weight] += WEIGHT_ENGINE + WEIGHT_INDEX * (index_page + 1)
 
             end
           }
