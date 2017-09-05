@@ -36,15 +36,21 @@ module Keywords
   WEIGHT_ENGINE = 10
   WEIGHT_INDEX_PAGE = -3
   WEIGHT_INDEX_LINK = -1
-  ENGINES = {:google => {:result => 'h3.r > a',
+  ENGINES = {:google => {:result => 'div.g' ,
+                         :description => 'span',
+                         :link => 'h3.r > a',
                          :engine_url => "https://www.google.fr/",
                          :keywords_field_css => 'q',
                          :next_css => 'a#pnnext.pn'},
-             :bing => {:result => 'h2 > a',
+             :bing => {:result =>  'li.b_algo',
+                       :link => 'h2 > a',
+                       :description => 'p',
                        :engine_url => "https://www.bing.com/",
                        :keywords_field_css => 'q',
                        :next_css => 'a.sb_pagN'},
-             :yahoo => {:result => 'h3.title > a.td-u',
+             :yahoo => {:result => 'div.dd.algo' ,
+                        :description => 'div.compText.aAbs',
+                        :link => 'h3 > a',
                         :engine_url => "https://fr.search.yahoo.com",
                         :keywords_field_css => 'p',
                         :next_css => 'a.next'}
@@ -230,7 +236,7 @@ module Keywords
       end
     end
 
-    def search_as_saas(engines=[:google, :yahoo, :bing], index_page=1,count_pages=1)
+    def search_as_saas(engines=[:google, :yahoo, :bing], index_page=1, count_pages=1)
       # engines est un array [:google, :yahoo, :bing]
       try_count = 3
 
@@ -445,6 +451,8 @@ module Keywords
       begin
         raise Error.new(ARGUMENT_NOT_DEFINE, :values => {:variable => "css_elements"}) if css_elements.nil? or css_elements.empty?
 
+        description_css = css_elements[:description]
+        link_css = css_elements[:link]
         result_css = css_elements[:result]
         engine_url = css_elements[:engine_url]
         keywords_field_css = css_elements[:keywords_field_css]
@@ -463,22 +471,25 @@ module Keywords
         # deplacement jusqu'à la page de depart
         (start_index - 1).times { driver.find_element(:css, next_css).click; sleep 1 }
 
+
         max_count_page.times { |index|
           page_index = start_index -1 + index
           link_index = 1
-          driver.find_elements(:css, result_css).each { |link|
+
+          driver.find_elements(:css, result_css).each { |father|
+            link = father.find_elements(:css, link_css)[0]
+            description = father.find_elements(:css, description_css).map{|t| t.text}.delete_if{|t| t.empty?}.join(" ; ")
             title = link.text
 
-            #p "#{engine} => page #{page_index + 1} : #{title}, #{link["href"]}"
-
             if @results[link["href"]].nil?
-              @results.merge!({link["href"] => {:engines => [{:name => engine, :index => page_index + 1, :title => title}],
+
+              @results.merge!({link["href"] => {:engines => [{:name => engine, :index => page_index + 1, :title => title, :description => description}],
                                                 :weight => WEIGHT_ENGINE + WEIGHT_INDEX_PAGE * page_index + WEIGHT_INDEX_LINK * link_index}
                               })
 
             else
               unless @results[link["href"]][:engines].map { |engine| engine[:name] }.include?(engine)
-                @results[link["href"]][:engines] << {:name => engine, :index => page_index + 1, :title => title}
+                @results[link["href"]][:engines] << {:name => engine, :index => page_index + 1, :title => title, :description => description}
                 @results[link["href"]][:weight] += WEIGHT_ENGINE + WEIGHT_INDEX_PAGE * page_index + WEIGHT_INDEX_LINK * link_index
               end
             end

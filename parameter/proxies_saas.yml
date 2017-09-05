@@ -4,6 +4,7 @@ development:
   :delay_periodic_get_proxy_list: 1 #en day
   :periodicity_supervision: 15m    #(minute)
   :proxy_list_url: http://www.valid-link.com/list.txt
+  :checking_anonymity_url: http://olgadays.synology.me:8081/proxies
   :debugging: true
 
 test:
@@ -11,6 +12,7 @@ test:
   :delay_periodic_get_proxy_list: 1 #en day
   :periodicity_supervision: 15m    #(minute)
   :proxy_list_url: http://www.valid-link.com/list.txt
+  :checking_anonymity_url: http://192.168.1.88:4000/proxies
   :debugging:  true
 
 production:
@@ -18,4 +20,5 @@ production:
   :delay_periodic_get_proxy_list: 1 #en day
   :periodicity_supervision: 15m    #(minute)
   :proxy_list_url: http://www.valid-link.com/list.txt
+  :checking_anonymity_url: http://192.168.1.88:4000/proxies
   :debugging:  true

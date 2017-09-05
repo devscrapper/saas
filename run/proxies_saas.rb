@@ -4,6 +4,8 @@ require 'yaml'
 require 'trollop'
 require 'rufus-scheduler'
 require 'open-uri'
+
+
 require_relative '../lib/logging'
 require_relative '../lib/parameter'
 require_relative '../lib/geolocation/geolocation_factory'
@@ -11,7 +13,7 @@ require_relative '../lib/supervisor'
 require_relative '../model/proxies_connection'
 =begin
 saas get proxy list
-
+                                                             --
 Usage:
        scraper_server [options]
 where [options] are:
@@ -20,6 +22,35 @@ where [options] are:
                                   --version, -v:   Print version and exit
                                      --help, -h:   Show this message
 =end
+SEPARATOR = ":"
+#--------------------------------------------------------------------------------------------------------------------
+# CHECK_ANONIMITY
+#--------------------------------------------------------------------------------------------------------------------
+def check_anonymity(url, proxies_list)
+  proxies = []
+
+  proxies_list.split(/\n/).each { |p|
+    # accepte les hsotname ou les @ip pour <ip>
+
+    ip, port, user, pwd = p.split(/:/)
+
+    begin
+      res = open(url, :proxy_http_basic_authentication =>  ["http://#{ip}:#{port}/", user, pwd]).read
+
+    rescue Exception => e
+
+    else
+      p res
+      properties = JSON.parse(res)
+      proxies << p  if properties[:ip] == ip and #adresse ip du proxy a été retournée par le checking
+          properties[:referrer] == "null"
+    end
+
+  }
+  proxies.join('\n')
+end
+
+
 #--------------------------------------------------------------------------------------------------------------------
 # INIT
 #--------------------------------------------------------------------------------------------------------------------
@@ -54,7 +85,9 @@ else
   listening_port = parameters.listening_port
   periodicity_supervision = parameters.periodicity_supervision
   proxy_list_url = parameters.proxy_list_url
+  checking_anonymity_url = parameters.checking_anonymity_url
 end
+
 
 TMP = Pathname(File.join(File.dirname(__FILE__), '..', 'tmp')).realpath
 
@@ -84,11 +117,11 @@ begin
     Rufus::Scheduler.start_new.every periodicity_supervision do
       Supervisor.send_online(File.basename(__FILE__, '.rb'))
     end
-    proxy_list = File.open(File.join(TMP,"proxy_list"), "w+:bom|utf-8")
-    proxy_list.write(open(proxy_list_url).read)
+    proxy_list = File.open(File.join(TMP, "proxy_list"), "w+:bom|utf-8")
+    proxy_list.write(check_anonymity(checking_anonymity_url, open(proxy_list_url).read))
     proxy_list.close
     EM.add_periodic_timer(delay_periodic_get_proxy_list * 60 * 60 * 24) do
-      proxy_list = File.open(File.join(TMP,"proxy_list"), "w+:bom|utf-8")
+      proxy_list = File.open(File.join(TMP, "proxy_list"), "w+:bom|utf-8")
       proxy_list.write(open(proxy_list_url).read)
       proxy_list.close
     end
